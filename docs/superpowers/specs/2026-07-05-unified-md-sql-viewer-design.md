@@ -26,6 +26,22 @@ public GitHub repo where cloning is the whole installation.
 4. Lean feature set: tabs, sidebar outline, Cmd+F search, syntax highlighting,
    auto dark/light, drag-drop, file picker, macOS Finder double-click integration.
 
+### Search & keyboard
+
+Cmd+F opens a custom find bar scoped to the active tab: it searches the raw
+source text, shows a match count, and Enter/Shift+Enter steps through matches —
+scrolling/highlighting the match in view mode, moving the textarea selection in
+edit mode.
+
+| Shortcut | Action |
+|---|---|
+| `Cmd+O` | Open files (picker) |
+| `Cmd+W` | Close tab (prompts if dirty) |
+| `[` / `]` | Previous / next tab |
+| `Cmd+E` | Toggle View ⇄ Edit |
+| `Cmd+S` | Save / Save As… / Download (per capability) |
+| `Cmd+F` | Find in active tab |
+
 ### Explicitly out of scope (v1)
 
 - Auto-reload on external file change, persisted tabs across sessions,
@@ -62,10 +78,14 @@ viewer.html  (~150KB, ~2,500–3,000 lines, clear section banners)
                    • plaintext — fallback: gutter + raw text, empty outline
 ```
 
-**Core contract:** CORE never knows filetypes beyond `RENDERERS[ext] ?? plaintext`.
-Renderers take raw source text, return rendered DOM plus a flat outline
-(`{label, level, target}`) that CORE pours into the sidebar. A new filetype = one
-new renderer object, no CORE changes.
+**Core contract:** CORE never knows filetypes beyond `RENDERERS[ext] ?? plaintext`
+(extension = lowercased suffix; none → plaintext). Renderers take raw source text,
+return rendered DOM plus a flat outline of `{label, level, anchor, line}` entries
+that CORE pours into the sidebar — `anchor` is the rendered-DOM jump target used
+in view mode; `line` is the 1-based source line used in edit mode (the markdown
+renderer computes it by locating each heading's markup in the source; the SQL
+renderer already tracks statement lines). A new filetype = one new renderer
+object, no CORE changes.
 
 Rendering is cached per tab; invalidated when source changes (edit-mode save or
 view toggle after edits).
@@ -82,7 +102,7 @@ view toggle after edits).
 ## Repo layout
 
 ```
-md-sql-viewer/                  (~150KB total)
+md-sql-viewer/                  (~200KB total; viewer.html is ~150KB of it)
 ├── viewer.html                 ← the app
 ├── README.md                   — 30-second quickstart; per-OS setup below it
 ├── LICENSE                     — MIT (compatible with vendored marked)
@@ -158,10 +178,11 @@ Power-edit sessions start from inside the app in Chromium.
 
 ## Testing
 
-- **`tests.html`:** loads `viewer.html` in an iframe; feeds known inputs to
-  exposed pure functions (SQL tokenizer, outline builders, markdown
-  preprocessing, seed decoder) and asserts DOM outcomes. Open in browser →
-  green/red list. No framework, no npm.
+- **`tests.html`:** loads `viewer.html` in an iframe. The viewer exposes its pure
+  functions (SQL tokenizer, outline builders, markdown preprocessing, seed
+  decoder) on a `window.__TEST__` namespace; the harness feeds known inputs and
+  asserts return values and resulting DOM. Open in browser → green/red list. No
+  framework, no npm.
 - **`samples/` as manual smoke suite:** README checklist (~10 items): open both
   samples, toggle edit, save-back in Chrome, download fallback in Safari,
   double-click flow after `build.sh`, dirty-close prompt, large-file fallback.
