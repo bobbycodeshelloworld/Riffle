@@ -36,7 +36,7 @@ edit mode.
 | Shortcut | Action |
 |---|---|
 | `Cmd+O` | Open files (picker) |
-| `Cmd+W` | Close tab (prompts if dirty) |
+| `x` | Close tab (prompts if dirty). Browsers reserve `Cmd+W` for closing the browser tab; that path is guarded by a `beforeunload` prompt when any tab has unsaved edits. |
 | `[` / `]` | Previous / next tab |
 | `Cmd+E` | Toggle View ⇄ Edit |
 | `Cmd+S` | Save / Save As… / Download (per capability) |
@@ -61,7 +61,8 @@ edit mode.
 viewer.html  (~150KB, ~2,500–3,000 lines, clear section banners)
 ├── CSS          — shell styles + :root theme vars (auto dark/light, --t-* token
 │                  variable scheme carried over from sql-viewer)
-├── VENDORED     — marked.min.js inlined verbatim (MIT, license header kept)
+├── VENDORED     — marked v18.0.5 UMD bundle (lib/marked.umd.js, ~43KB) inlined
+│                  verbatim (MIT, license header kept)
 ├── CORE         — filetype-agnostic:
 │                  • state: tabs[] {id, name, ext, source, handle?, mode, dirty,
 │                    lastModified}
@@ -106,7 +107,11 @@ md-sql-viewer/                  (~200KB total; viewer.html is ~150KB of it)
 ├── viewer.html                 ← the app
 ├── README.md                   — 30-second quickstart; per-OS setup below it
 ├── LICENSE                     — MIT (compatible with vendored marked)
-├── tests.html                  — zero-dependency in-browser test harness
+├── tests.html                  — opens the in-browser suite (redirects to viewer.html?test=1)
+├── tests/
+│   ├── run-node.mjs            — zero-dependency Node runner for the pure-function layer
+│   ├── browser-tests.js        — DOM test suite injected by viewer.html?test=1
+│   └── open-in-browser.sh      — opens viewer.html?test=1 in the default browser
 ├── samples/
 │   ├── sample.md               — exercises TOC, tables, task lists, code fences
 │   └── sample.sql              — existing sample.sql (outline, dollar-quoting)
@@ -178,11 +183,18 @@ Power-edit sessions start from inside the app in Chromium.
 
 ## Testing
 
-- **`tests.html`:** loads `viewer.html` in an iframe. The viewer exposes its pure
-  functions (SQL tokenizer, outline builders, markdown preprocessing, seed
-  decoder) on a `window.__TEST__` namespace; the harness feeds known inputs and
-  asserts return values and resulting DOM. Open in browser → green/red list. No
-  framework, no npm.
+- **In-browser suite:** `viewer.html?test=1` injects `tests/browser-tests.js`
+  (a classic script — iframes and ES modules are blocked over `file://`), which
+  drives the live app through `window.__TEST__` and renders a green/red overlay
+  with a machine-readable `#test-summary[data-fail]` marker. `tests.html` is a
+  convenience redirect to it. No framework, no npm.
+- **Node runner:** the viewer's pure functions (SQL tokenizer, outline builders,
+  markdown preprocessing, seed decoder, find/save resolution) are exposed on
+  `window.__TEST__` and also run under `node tests/run-node.mjs`, which
+  evaluates viewer.html's scripts in a `node:vm` sandbox — Node built-ins only,
+  still zero npm. Structural rule that enables this: all DOM lookups and event
+  wiring live inside `initApp()`, guarded by `typeof document !== 'undefined'`;
+  the top level declares only functions and constants.
 - **`samples/` as manual smoke suite:** README checklist (~10 items): open both
   samples, toggle edit, save-back in Chrome, download fallback in Safari,
   double-click flow after `build.sh`, dirty-close prompt, large-file fallback.
