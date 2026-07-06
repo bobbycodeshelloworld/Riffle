@@ -29,6 +29,9 @@ if [ "$#" -gt 0 ]; then
       path=$f
       name=${name//\\/\\\\}; name=${name//\"/\\\"}
       path=${path//\\/\\\\}; path=${path//\"/\\\"}
+      name=${name//</\\u003c}; path=${path//</\\u003c}
+      name=$(printf '%s' "$name" | tr -d '\000-\037')
+      path=$(printf '%s' "$path" | tr -d '\000-\037')
       b64=$(base64 < "$f" | tr -d '\n')
       [ "$first" -eq 1 ] || printf ','
       printf '{"name":"%s","path":"%s","b64":"%s"}' "$name" "$path" "$b64"

@@ -938,10 +938,11 @@ function setActive(id) { if (state.activeId === id) return; state.activeId = id;
 function closeTab(id) {
   const idx = state.tabs.findIndex(t => t.id === id);
   if (idx === -1) return;
+  const wasActive = state.activeId === id;
   state.tabs.splice(idx, 1);
   if (state.activeId === id) { const next = state.tabs[idx] || state.tabs[idx - 1]; state.activeId = next ? next.id : null; }
-  renderTabs(); renderActive();
-  refreshFindForActiveTab();
+  renderTabs();
+  if (wasActive) { renderActive(); refreshFindForActiveTab(); }
 }
 function prevTab() { if (state.tabs.length < 2) return; const i = state.tabs.findIndex(t => t.id === state.activeId); setActive(state.tabs[(i - 1 + state.tabs.length) % state.tabs.length].id); }
 function nextTab() { if (state.tabs.length < 2) return; const i = state.tabs.findIndex(t => t.id === state.activeId); setActive(state.tabs[(i + 1) % state.tabs.length].id); }
@@ -1006,7 +1007,7 @@ function renderOutlinePane(entries, title, tab) {
     a.title = e.label + (e.line ? '  ·  line ' + e.line : '');
     a.addEventListener('click', ev => { ev.preventDefault(); jumpTo(e, tab); });
     li.appendChild(a);
-    if (e.line) outlineLinks.push({ a, line: e.line });
+    if (e.line || e.anchor) outlineLinks.push({ a, line: e.line, anchor: e.anchor });
     if (e.text) { // sql statements: hover-copy chip
       const cp = document.createElement('span');
       cp.className = 'o-copy'; cp.textContent = 'copy'; cp.title = 'Copy this statement';
@@ -1418,9 +1419,9 @@ function initApp() {
       spyTick = false;
       const mark = 140;
       let active = null;
-      for (const { a, line } of outlineLinks) {
-        const row = document.getElementById('line-' + line);
-        if (row && row.getBoundingClientRect().top <= mark) active = a; else break;
+      for (const o of outlineLinks) {
+        const row = (o.line && document.getElementById('line-' + o.line)) || (o.anchor && document.getElementById(o.anchor));
+        if (row && row.getBoundingClientRect().top <= mark) active = o.a; else break;
       }
       outlineLinks.forEach(o => o.a.classList.toggle('active', o.a === active));
     });

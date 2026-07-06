@@ -237,6 +237,16 @@
     A.closeTab(a); A.closeTab(b);
   });
 
+  t('closing a background tab leaves the active editor intact', () => {
+    const a = A.addTab({ name: 'bg1.sql', source: 'SELECT 1;' });
+    const b = A.addTab({ name: 'bg2.sql', source: 'SELECT 2;' });
+    A.toggleEdit();
+    const ta = document.querySelector('.editor-ta');
+    A.closeTab(a); // background tab
+    ok(document.querySelector('.editor-ta') === ta, 'editor not rebuilt');
+    A.toggleEdit(); A.closeTab(b);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {
