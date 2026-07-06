@@ -309,6 +309,36 @@
     A.closeTab(id);
   });
 
+  t('settings panel opens and applies a theme live', () => {
+    A.openSettingsPanel();
+    const panel = document.getElementById('settings-panel');
+    ok(!panel.hidden, 'panel visible');
+    const slateRow = [...panel.querySelectorAll('.theme-row')].find(b => b.textContent.includes('Slate'));
+    ok(slateRow, 'slate row present');
+    slateRow.click();
+    eq(A.getSettings().theme, 'slate');
+    const mode = document.documentElement.style.getPropertyValue('--accent').trim();
+    ok(mode === T.THEMES.slate.dark.accent || mode === T.THEMES.slate.light.accent, 'accent var applied');
+    A.closeSettingsPanel();
+    ok(panel.hidden, 'panel closed');
+  });
+
+  t('forced appearance switches modes; wrap and tab width apply', () => {
+    const before = document.documentElement.style.getPropertyValue('--bg').trim();
+    const s = A.getSettings();
+    s.appearance = 'light'; A.applySettings();
+    const lightBg = document.documentElement.style.getPropertyValue('--bg').trim();
+    eq(lightBg, T.THEMES[s.theme].light.bg);
+    s.appearance = 'dark'; A.applySettings();
+    eq(document.documentElement.style.getPropertyValue('--bg').trim(), T.THEMES[s.theme].dark.bg);
+    s.wrap = true; s.tabSize = 8; A.applySettings();
+    ok(document.body.classList.contains('wrap'), 'wrap class set');
+    eq(document.documentElement.style.getPropertyValue('--tab-size-setting').trim(), '8');
+    // restore defaults for subsequent tests
+    s.appearance = 'auto'; s.wrap = false; s.tabSize = 4; s.theme = 'catppuccin'; A.applySettings();
+    ok(before.length >= 0);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {

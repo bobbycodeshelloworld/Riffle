@@ -213,5 +213,40 @@ t('diffOutline lists files as sections and hunks', () => {
   eq(entries.map(e => [e.kind || 'hunk', e.line]), [['section', 3], ['hunk', 4]]);
 });
 
+/* ===== v1.2: settings ===== */
+t('sanitizeSettings fills defaults and rejects bad values', () => {
+  eq(T.sanitizeSettings({}), { theme: 'catppuccin', appearance: 'auto', fontScale: 'm', wrap: false, tabSize: 4 });
+  eq(T.sanitizeSettings({ theme: 'nope', appearance: 'purple', fontScale: 9, wrap: 'yes', tabSize: 3 }),
+     { theme: 'catppuccin', appearance: 'auto', fontScale: 'm', wrap: true, tabSize: 4 });
+  eq(T.sanitizeSettings({ theme: 'slate', appearance: 'dark', fontScale: 'l', wrap: true, tabSize: 8 }),
+     { theme: 'slate', appearance: 'dark', fontScale: 'l', wrap: true, tabSize: 8 });
+});
+t('loadSettings tolerates corrupt or missing storage', () => {
+  const bad = { getItem: () => '{not json', setItem: () => {} };
+  eq(T.loadSettings(bad).theme, 'catppuccin');
+  const none = { getItem: () => null, setItem: () => {} };
+  eq(T.loadSettings(none).appearance, 'auto');
+  const boom = { getItem: () => { throw new Error('denied'); }, setItem: () => {} };
+  eq(T.loadSettings(boom).tabSize, 4);
+});
+t('settings round-trip through storage', () => {
+  const mem = {};
+  const st = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; } };
+  T.saveSettings({ theme: 'slate', appearance: 'light', fontScale: 's', wrap: true, tabSize: 2 }, st);
+  eq(T.loadSettings(st), { theme: 'slate', appearance: 'light', fontScale: 's', wrap: true, tabSize: 2 });
+});
+t('every theme defines the full var schema in both modes', () => {
+  const ids = Object.keys(T.THEMES);
+  ok(ids.length >= 2, 'at least catppuccin+slate');
+  for (const id of ids) {
+    const th = T.THEMES[id];
+    ok(typeof th.label === 'string' && th.label, id + ' label');
+    for (const mode of ['dark', 'light']) {
+      const keys = Object.keys(th[mode] || {}).sort();
+      eq(keys, [...T.VAR_SCHEMA].sort(), id + '.' + mode + ' schema');
+    }
+  }
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -287,6 +287,34 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
 
 /* ============ CSV/TSV TABLE ============ */
 .csv-wrap { overflow-x: auto; }
+
+/* ============ SETTINGS PANEL ============ */
+#settings-panel { position: absolute; right: 16px; top: 52px; z-index: 40;
+  width: 300px; max-height: 70vh; overflow-y: auto; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.35); }
+#settings-panel h4 { margin: 12px 0 6px; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--muted); }
+#settings-panel h4:first-child { margin-top: 0; }
+.theme-row { display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 8px; margin: 1px 0; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--ink); font: 12.5px -apple-system, sans-serif;
+  cursor: pointer; text-align: left; }
+.theme-row:hover { border-color: var(--border); }
+.theme-row.active { border-color: var(--accent); }
+.swatch { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
+  border: 1px solid rgba(127,127,127,0.35); }
+.seg-row { display: flex; gap: 4px; }
+.seg-btn { flex: 1; padding: 5px 0; font-size: 11.5px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); border-radius: 6px; cursor: pointer; }
+.seg-btn.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+/* ============ SETTINGS CONSUMERS ============ */
+.code-scroll, .editor-gutter, .editor-ta { font-size: calc(12.8px * var(--font-scale, 1)); }
+.prose { font-size: calc(15.5px * var(--font-scale, 1)); }
+.lc, .editor-ta { tab-size: var(--tab-size-setting, 4); }
+body.wrap .row { min-width: 0; }
+body.wrap .lc { white-space: pre-wrap; }
 </style>
 </head>
 <body>
@@ -301,6 +329,7 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
     </button>
     <button class="ghost-btn" id="editToggle" title="Toggle edit mode (⌘E)" hidden>Edit</button>
     <button class="copy-btn" id="saveBtn" title="Save (⌘S)" hidden><span>Save</span></button>
+    <button class="ghost-btn" id="settingsBtn" title="Settings">⚙</button>
     <button class="ghost-btn" id="openBtn" title="Open files (⌘O)">Open file(s)</button>
     <input type="file" id="picker" accept=".md,.markdown,.mdown,.mkd,.sql,.ddl,.pgsql,.psql,.txt,.json,.geojson,.csv,.tsv,.diff,.patch" multiple>
   </div>
@@ -312,6 +341,7 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
     <button class="ghost-btn find-nav" id="find-next" title="Next match (Enter)">›</button>
     <button class="ghost-btn find-nav" id="find-close" title="Close (Esc)">×</button>
   </div>
+  <div id="settings-panel" hidden></div>
 </header>
 
 <div class="body-layout">
@@ -1517,6 +1547,220 @@ function refreshFindForActiveTab() {
 }
 
 /* ════════════════════════════════════════════════════════════
+   CORE · settings & themes
+   ════════════════════════════════════════════════════════════ */
+const VAR_SCHEMA = ['bg', 'panel', 'ink', 'muted', 'border', 'accent', 'accent-ink',
+  'code-bg', 'sel', 'tab-active-ink', 'tab-idle-ink', 'tab-hover-ink', 'gutter-ink',
+  'flash', 't-comment', 't-string', 't-dollar', 't-number', 't-param', 't-keyword',
+  't-type', 't-func', 't-ident', 't-qident', 't-punct', 't-add', 't-del', 't-hunk', 't-filehdr'];
+
+const THEMES = {
+  catppuccin: {
+    label: 'Catppuccin',
+    dark: {
+      'bg': '#1e1e2e', 'panel': '#181825', 'ink': '#cdd6f4', 'muted': '#a6adc8',
+      'border': '#313244', 'accent': '#cba6f7', 'accent-ink': '#1e1e2e',
+      'code-bg': '#11111b', 'sel': 'rgba(203,166,247,0.28)',
+      'tab-active-ink': '#f5e0dc', 'tab-idle-ink': '#a6adc8', 'tab-hover-ink': '#f5c2e7',
+      'gutter-ink': '#585b70', 'flash': 'rgba(203,166,247,0.16)',
+      't-comment': '#7f849c', 't-string': '#a6e3a1', 't-dollar': '#a6e3a1',
+      't-number': '#fab387', 't-param': '#f5c2e7', 't-keyword': '#cba6f7',
+      't-type': '#f9e2af', 't-func': '#89b4fa', 't-ident': '#cdd6f4',
+      't-qident': '#94e2d5', 't-punct': '#9399b2',
+      't-add': '#a6e3a1', 't-del': '#f38ba8', 't-hunk': '#89b4fa', 't-filehdr': '#f9e2af',
+    },
+    light: {
+      'bg': '#eff1f5', 'panel': '#ffffff', 'ink': '#4c4f69', 'muted': '#6c6f85',
+      'border': '#ccd0da', 'accent': '#8839ef', 'accent-ink': '#ffffff',
+      'code-bg': '#e6e9ef', 'sel': 'rgba(136,57,239,0.16)',
+      'tab-active-ink': '#8839ef', 'tab-idle-ink': '#6c6f85', 'tab-hover-ink': '#4c4f69',
+      'gutter-ink': '#9ca0b0', 'flash': 'rgba(136,57,239,0.12)',
+      't-comment': '#8c8fa1', 't-string': '#40a02b', 't-dollar': '#40a02b',
+      't-number': '#fe640b', 't-param': '#ea76cb', 't-keyword': '#8839ef',
+      't-type': '#df8e1d', 't-func': '#1e66f5', 't-ident': '#4c4f69',
+      't-qident': '#179299', 't-punct': '#6c6f85',
+      't-add': '#40a02b', 't-del': '#d20f39', 't-hunk': '#1e66f5', 't-filehdr': '#df8e1d',
+    },
+  },
+  slate: {
+    label: 'Slate',
+    dark: {
+      'bg': '#0f1115', 'panel': '#161a21', 'ink': '#e6e8eb', 'muted': '#8b93a1',
+      'border': '#252a33', 'accent': '#7dd3fc', 'accent-ink': '#0f1115',
+      'code-bg': '#0b0d11', 'sel': 'rgba(125,211,252,0.25)',
+      'tab-active-ink': '#e6e8eb', 'tab-idle-ink': '#8b93a1', 'tab-hover-ink': '#c7cbd3',
+      'gutter-ink': '#4b5563', 'flash': 'rgba(125,211,252,0.14)',
+      't-comment': '#6b7280', 't-string': '#86efac', 't-dollar': '#86efac',
+      't-number': '#fdba74', 't-param': '#f0abfc', 't-keyword': '#7dd3fc',
+      't-type': '#fcd34d', 't-func': '#a5b4fc', 't-ident': '#e6e8eb',
+      't-qident': '#5eead4', 't-punct': '#9ca3af',
+      't-add': '#86efac', 't-del': '#fda4af', 't-hunk': '#a5b4fc', 't-filehdr': '#fcd34d',
+    },
+    light: {
+      'bg': '#fafaf7', 'panel': '#ffffff', 'ink': '#1a1d22', 'muted': '#5b6370',
+      'border': '#e4e6eb', 'accent': '#0369a1', 'accent-ink': '#ffffff',
+      'code-bg': '#f3f4f6', 'sel': 'rgba(3,105,161,0.18)',
+      'tab-active-ink': '#0369a1', 'tab-idle-ink': '#5b6370', 'tab-hover-ink': '#1a1d22',
+      'gutter-ink': '#9ca3af', 'flash': 'rgba(3,105,161,0.10)',
+      't-comment': '#6b7280', 't-string': '#15803d', 't-dollar': '#15803d',
+      't-number': '#c2410c', 't-param': '#a21caf', 't-keyword': '#0369a1',
+      't-type': '#a16207', 't-func': '#4338ca', 't-ident': '#1a1d22',
+      't-qident': '#0f766e', 't-punct': '#5b6370',
+      't-add': '#15803d', 't-del': '#be123c', 't-hunk': '#4338ca', 't-filehdr': '#a16207',
+    },
+  },
+};
+
+const SETTING_DEFAULTS = { theme: 'catppuccin', appearance: 'auto', fontScale: 'm', wrap: false, tabSize: 4 };
+const SETTINGS_KEY = 'riffle.settings';
+
+function sanitizeSettings(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  return {
+    theme: Object.prototype.hasOwnProperty.call(THEMES, r.theme) ? r.theme : SETTING_DEFAULTS.theme,
+    appearance: ['auto', 'light', 'dark'].includes(r.appearance) ? r.appearance : SETTING_DEFAULTS.appearance,
+    fontScale: ['s', 'm', 'l'].includes(r.fontScale) ? r.fontScale : SETTING_DEFAULTS.fontScale,
+    wrap: Boolean(r.wrap),
+    tabSize: [2, 4, 8].includes(r.tabSize) ? r.tabSize : SETTING_DEFAULTS.tabSize,
+  };
+}
+
+function loadSettings(storage) {
+  try {
+    const st = storage || window.localStorage;
+    const raw = st.getItem(SETTINGS_KEY);
+    return raw ? sanitizeSettings(JSON.parse(raw)) : { ...SETTING_DEFAULTS };
+  } catch (e) { return { ...SETTING_DEFAULTS }; }
+}
+
+function saveSettings(s, storage) {
+  try { (storage || window.localStorage).setItem(SETTINGS_KEY, JSON.stringify(s)); }
+  catch (e) { /* storage unavailable (e.g. some file:// contexts) — session-only */ }
+}
+
+Object.assign(window.__TEST__, { VAR_SCHEMA, THEMES, sanitizeSettings, loadSettings, saveSettings });
+
+let settings = { ...SETTING_DEFAULTS };
+const FONT_SCALES = { s: '0.88', m: '1', l: '1.15' };
+let darkMedia = null; // assigned in initApp
+
+function currentMode() {
+  if (settings.appearance !== 'auto') return settings.appearance;
+  return darkMedia && !darkMedia.matches ? 'light' : 'dark';
+}
+
+function applySettings() {
+  const theme = THEMES[settings.theme] || THEMES.catppuccin;
+  const vars = theme[currentMode()];
+  const root = document.documentElement;
+  for (const k of VAR_SCHEMA) root.style.setProperty('--' + k, vars[k]);
+  root.style.setProperty('--font-scale', FONT_SCALES[settings.fontScale]);
+  root.style.setProperty('--tab-size-setting', String(settings.tabSize));
+  document.body.classList.toggle('wrap', settings.wrap);
+  refreshSettingsPanel();
+}
+
+function persistAndApply() {
+  saveSettings(settings);
+  applySettings();
+}
+
+let settingsPanelEl = null;
+
+function buildSettingsPanel() {
+  settingsPanelEl = document.getElementById('settings-panel');
+  if (!settingsPanelEl) return;
+  settingsPanelEl.textContent = '';
+
+  const themeHeading = document.createElement('h4');
+  themeHeading.textContent = 'Theme';
+  settingsPanelEl.appendChild(themeHeading);
+
+  for (const id of Object.keys(THEMES)) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'theme-row';
+    row.dataset.theme = id;
+    const swatchKeys = ['bg', 'accent', 't-string', 't-keyword', 't-del'];
+    for (const k of swatchKeys) {
+      const dot = document.createElement('span');
+      dot.className = 'swatch';
+      dot.dataset.swatch = k;
+      row.appendChild(dot);
+    }
+    const label = document.createElement('span');
+    label.textContent = THEMES[id].label;
+    row.appendChild(label);
+    row.addEventListener('click', () => { settings.theme = id; persistAndApply(); });
+    settingsPanelEl.appendChild(row);
+  }
+
+  function segRow(heading, options, set) {
+    const h = document.createElement('h4');
+    h.textContent = heading;
+    settingsPanelEl.appendChild(h);
+    const row = document.createElement('div');
+    row.className = 'seg-row';
+    for (const [value, text] of options) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'seg-btn';
+      btn.dataset.value = String(value);
+      btn.textContent = text;
+      btn.addEventListener('click', () => { set(value); persistAndApply(); });
+      row.appendChild(btn);
+    }
+    settingsPanelEl.appendChild(row);
+    return row;
+  }
+
+  segRow('Appearance', [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']], v => { settings.appearance = v; });
+  segRow('Font size', [['s', 'S'], ['m', 'M'], ['l', 'L']], v => { settings.fontScale = v; });
+  segRow('Line wrap', [[true, 'On'], [false, 'Off']], v => { settings.wrap = v; });
+  segRow('Tab width', [[2, '2'], [4, '4'], [8, '8']], v => { settings.tabSize = v; });
+
+  refreshSettingsPanel();
+}
+
+function refreshSettingsPanel() {
+  if (!settingsPanelEl) return;
+  const mode = currentMode();
+
+  settingsPanelEl.querySelectorAll('.theme-row').forEach(row => {
+    const id = row.dataset.theme;
+    row.classList.toggle('active', id === settings.theme);
+    const vars = THEMES[id][mode];
+    row.querySelectorAll('.swatch').forEach(dot => {
+      dot.style.background = vars[dot.dataset.swatch];
+    });
+  });
+
+  const segValues = { appearance: settings.appearance, fontScale: settings.fontScale, wrap: settings.wrap, tabSize: settings.tabSize };
+  const segs = settingsPanelEl.querySelectorAll('.seg-row');
+  const order = ['appearance', 'fontScale', 'wrap', 'tabSize'];
+  segs.forEach((row, i) => {
+    const key = order[i];
+    const current = segValues[key];
+    row.querySelectorAll('.seg-btn').forEach(btn => {
+      const raw = btn.dataset.value;
+      const val = raw === 'true' ? true : raw === 'false' ? false : (/^\d+$/.test(raw) ? Number(raw) : raw);
+      btn.classList.toggle('active', val === current);
+    });
+  });
+}
+
+function openSettingsPanel() {
+  if (!settingsPanelEl) return;
+  refreshSettingsPanel();
+  settingsPanelEl.hidden = false;
+}
+
+function closeSettingsPanel() {
+  if (!settingsPanelEl) return;
+  settingsPanelEl.hidden = true;
+}
+
+/* ════════════════════════════════════════════════════════════
    CORE · app bootstrap (all DOM access lives in initApp)
    ════════════════════════════════════════════════════════════ */
 let tabsEl, contentHost, outlineEl, metaEl, dropHint, copyAllBtn, editBtn, saveBtn,
@@ -1540,6 +1784,22 @@ function initApp() {
   findbarEl = document.getElementById('findbar');
   findInputEl = document.getElementById('find-input');
   findCountEl = document.getElementById('find-count');
+  const settingsBtn = document.getElementById('settingsBtn');
+
+  // ---- settings ----
+  darkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+  darkMedia.addEventListener('change', () => { if (settings.appearance === 'auto') applySettings(); });
+  settings = loadSettings();
+  buildSettingsPanel();
+  applySettings();
+  settingsBtn.addEventListener('click', () => {
+    if (settingsPanelEl.hidden) openSettingsPanel(); else closeSettingsPanel();
+  });
+  document.addEventListener('mousedown', e => {
+    if (settingsPanelEl.hidden) return;
+    if (settingsPanelEl.contains(e.target) || settingsBtn.contains(e.target)) return;
+    closeSettingsPanel();
+  });
 
   // ---- open paths ----
   openBtn.addEventListener('click', openViaPicker);
@@ -1601,6 +1861,7 @@ function initApp() {
       if (k === 'o') { e.preventDefault(); openViaPicker(); return; }
       if (k === 'f') { e.preventDefault(); openFindBar(); return; }
     }
+    if (e.key === 'Escape' && settingsPanelEl && !settingsPanelEl.hidden) { e.preventDefault(); closeSettingsPanel(); return; }
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1644,6 +1905,7 @@ function initApp() {
   Object.assign(window.__TEST__.app, { toggleEdit, closeTabWithGuard, isDirty });
   Object.assign(window.__TEST__.app, { saveActiveTab, openViaPicker, updateHeaderButtons });
   Object.assign(window.__TEST__.app, { openFindBar, closeFindBar, runFind, stepFind, findState });
+  Object.assign(window.__TEST__.app, { applySettings, openSettingsPanel, closeSettingsPanel, getSettings: () => settings });
 
   // Test mode: viewer.html?test=1 pulls in the browser suite (classic script;
   // iframes/ES modules don't work over file://).
