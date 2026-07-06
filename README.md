@@ -18,6 +18,10 @@ click *Open file(s)*. That's the whole setup.
 - **JSON / CSV / diff** — colored JSON with a key outline (and a validity
   notice), CSV/TSV as real tables, diffs with green/red change lines and a
   file/hunk outline. Anything else opens as plain text.
+- **Themes & settings** — ⚙ in the header: 12 built-in themes (Catppuccin,
+  Nord, Solarized, Gruvbox, Rosé Pine, Tokyo Night, Dracula, GitHub, …),
+  light/dark/auto, font size, line wrap, tab width. Settings persist
+  locally; nothing leaves your machine.
 - **Editing** — press `⌘E` for raw source with line numbers. In Chromium
   browsers (Chrome, Edge, Arc, Brave) saving writes back to the original
   file; elsewhere the Save button honestly reads *Download copy*.
@@ -86,11 +90,12 @@ above.
 8. Drop a `.json` — colored keys + outline; drop a `.log` — opens as plain text.
 9. Drop a binary (e.g. a `.png`) — friendly refusal, app still works.
 10. `node tests/run-node.mjs` and `viewer.html?test=1` — all green.
+11. ⚙ → switch theme — colors change live; reload — choice persisted.
 
 ## Tweaking
 
-- **Colors:** the `:root` / `@media (prefers-color-scheme: light)` blocks at
-  the top of `viewer.html` (token colors are the `--t-*` variables).
+- **Colors:** pick a theme from ⚙, or add your own to the `THEMES` table in
+  `viewer.html` (the `:root` CSS block is just the no-JS fallback).
 - **SQL keywords/types:** the `KEYWORDS` / `TYPES` sets in the sql renderer section.
 - **New filetype:** add one renderer object exposing
   `render(source) → { bodyEl, outline, outlineTitle, notice? }` and register its
