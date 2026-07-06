@@ -108,6 +108,21 @@
     A.closeTab(id);
   });
 
+  t('tab × close button honors dirty guard', () => {
+    const id = A.addTab({ name: 'g.sql', source: 'SELECT 1;' });
+    A.toggleEdit();
+    const ta = document.querySelector('.editor-ta');
+    ta.value = 'SELECT 9;';
+    ta.dispatchEvent(new Event('input'));
+    let asked = false;
+    const prev = window.confirm;
+    window.confirm = () => { asked = true; return true; };
+    document.querySelector('#tabs .tab.active .tab-close').click();
+    window.confirm = prev;
+    ok(asked, 'confirm was called for dirty mouse-close');
+    ok(!A.state.tabs.some(t2 => t2.id === id), 'tab closed after confirm true');
+  });
+
   window.confirm = realConfirm;
 
   const failCount = results.filter(r => r.err).length;

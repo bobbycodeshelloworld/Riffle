@@ -911,7 +911,7 @@ function renderTabs() {
     btn.appendChild(name);
     const close = document.createElement('span');
     close.className = 'tab-close'; close.textContent = '×'; close.title = 'Close tab';
-    close.addEventListener('click', e => { e.stopPropagation(); closeTab(t.id); });
+    close.addEventListener('click', e => { e.stopPropagation(); closeTabWithGuard(t.id); });
     btn.appendChild(close);
     tabsEl.appendChild(btn);
   });
