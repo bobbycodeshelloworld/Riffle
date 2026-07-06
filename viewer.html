@@ -292,7 +292,7 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
     <button class="ghost-btn" id="editToggle" title="Toggle edit mode (⌘E)" hidden>Edit</button>
     <button class="copy-btn" id="saveBtn" title="Save (⌘S)" hidden><span>Save</span></button>
     <button class="ghost-btn" id="openBtn" title="Open files (⌘O)">Open file(s)</button>
-    <input type="file" id="picker" accept=".md,.markdown,.mdown,.mkd,.sql,.ddl,.pgsql,.psql,.txt" multiple>
+    <input type="file" id="picker" accept=".md,.markdown,.mdown,.mkd,.sql,.ddl,.pgsql,.psql,.txt,.json,.geojson" multiple>
   </div>
   <nav class="tabs-row" id="tabs" aria-label="Open files" hidden></nav>
   <div id="findbar" hidden>
@@ -422,6 +422,23 @@ function classifyContent(source) {
 
 function escapeHTML(s) { return s.replace(/[&<>]/g, c => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;')); }
 
+/* tokens → array of per-line HTML strings (multi-line tokens re-wrapped per line) */
+function tokensToLines(toks) {
+  const lines = [''];
+  let cur = 0;
+  for (const { t, v } of toks) {
+    const parts = v.split('\n');
+    for (let k = 0; k < parts.length; k++) {
+      if (k > 0) { lines.push(''); cur++; }
+      const piece = parts[k];
+      if (piece === '') continue;
+      const esc = escapeHTML(piece);
+      lines[cur] += (t === 'ws') ? esc : '<span class="t-' + t + '">' + esc + '</span>';
+    }
+  }
+  return lines;
+}
+
 function formatBytes(b) {
   if (b < 1024) return b + ' B';
   if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
@@ -447,7 +464,7 @@ function lineStartIndex(s, line) {
 
 function truncate(s, n) { s = s.replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; }
 
-window.__TEST__ = { extOf, classifyContent, escapeHTML, formatBytes, b64ToString, lineStartIndex, truncate };
+window.__TEST__ = { extOf, classifyContent, escapeHTML, formatBytes, b64ToString, lineStartIndex, truncate, tokensToLines };
 
 function findMatches(source, query) {
   if (!query) return [];
@@ -604,23 +621,8 @@ function tokenizeSQL(s) {
   return toks;
 }
 
-/* tokens → array of per-line HTML strings (multi-line tokens re-wrapped per line) */
-function highlightToLines(sql) {
-  const toks = tokenizeSQL(sql);
-  const lines = [''];
-  let cur = 0;
-  for (const { t, v } of toks) {
-    const parts = v.split('\n');
-    for (let k = 0; k < parts.length; k++) {
-      if (k > 0) { lines.push(''); cur++; }
-      const piece = parts[k];
-      if (piece === '') continue;
-      const esc = escapeHTML(piece);
-      lines[cur] += (t === 'ws') ? esc : '<span class="t-' + t + '">' + esc + '</span>';
-    }
-  }
-  return lines;
-}
+/* per-line HTML strings for a SQL source string */
+function highlightToLines(sql) { return tokensToLines(tokenizeSQL(sql)); }
 
 /* ============================================================
    Outline — statements (split on top-level ;) + banner comments
@@ -871,6 +873,66 @@ const mdRenderer = {
 RENDERERS.md = RENDERERS.markdown = RENDERERS.mdown = RENDERERS.mkd = mdRenderer;
 
 Object.assign(window.__TEST__, { preprocessMarkdown, sanitizeAngles, slugify, maskFences, headingLineFor, mdRenderer, isSafeUrl, scrubActiveContent });
+
+/* ════════════════════════════════════════════════════════════
+   RENDERERS · json
+   ════════════════════════════════════════════════════════════ */
+function tokenizeJSON(s) {
+  const RE_JWS = /\s+/y, RE_JNUM = /-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/y, RE_JLIT = /true|false|null/y;
+  const toks = [];
+  const n = s.length;
+  let i = 0, line = 1;
+  function push(t, v) { toks.push({ t, v, line }); for (let k = 0; k < v.length; k++) if (v.charCodeAt(k) === 10) line++; }
+  while (i < n) {
+    const c = s[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (j < n) { if (s[j] === '\\') { j += 2; continue; } if (s[j] === '"') { j++; break; } j++; }
+      let k = j;
+      while (k < n && (s[k] === ' ' || s[k] === '\t')) k++;
+      push(s[k] === ':' ? 'func' : 'string', s.slice(i, j));
+      i = j; continue;
+    }
+    let m = stickyAt(RE_JWS, s, i);
+    if (m !== null) { push('ws', m); i += m.length; continue; }
+    m = stickyAt(RE_JNUM, s, i);
+    if (m !== null) { push('number', m); i += m.length; continue; }
+    m = stickyAt(RE_JLIT, s, i);
+    if (m !== null) { push('keyword', m); i += m.length; continue; }
+    push('punct', c); i++;
+  }
+  return toks;
+}
+
+function jsonOutline(toks) {
+  const entries = [];
+  let depth = 0;
+  for (const tk of toks) {
+    if (tk.t === 'punct') {
+      if (tk.v === '{' || tk.v === '[') depth++;
+      else if (tk.v === '}' || tk.v === ']') depth--;
+    } else if (tk.t === 'func' && depth === 1) {
+      entries.push({ label: truncate(tk.v.slice(1, -1), 40), line: tk.line, level: 2 });
+      if (entries.length >= 500) break;
+    }
+  }
+  return entries;
+}
+
+const jsonRenderer = {
+  render(source) {
+    const toks = tokenizeJSON(source);
+    const bodyEl = buildCodeScroll(tokensToLines(toks));
+    const outline = jsonOutline(toks);
+    let notice = null;
+    try { JSON.parse(source); }
+    catch (e) { notice = 'Not valid JSON: ' + String(e.message || e).split('\n')[0]; }
+    return { bodyEl, outline, outlineTitle: outline.length ? 'Keys (' + outline.length + ')' : null, notice };
+  }
+};
+RENDERERS.json = RENDERERS.geojson = jsonRenderer;
+
+Object.assign(window.__TEST__, { tokensToLines, tokenizeJSON, jsonOutline, jsonRenderer });
 
 /* ════════════════════════════════════════════════════════════
    CORE · rendering primitives (ported from sql-viewer.html)
@@ -1137,13 +1199,14 @@ function renderActive() {
   } else {
     if (!tab.rendered || tab.rendered.source !== tab.source) {
       const r = rendererFor(tab.ext).render(tab.source);
-      tab.rendered = { source: tab.source, bodyEl: r.bodyEl, outline: r.outline, outlineTitle: r.outlineTitle };
+      tab.rendered = { source: tab.source, bodyEl: r.bodyEl, outline: r.outline, outlineTitle: r.outlineTitle, notice: r.notice };
     }
     result = tab.rendered;
   }
   tab.lastOutline = result.outline;
   contentHost.replaceChildren(result.bodyEl);
   renderOutlinePane(result.outline, result.outlineTitle, tab);
+  if (result.notice) { noticeEl.textContent = result.notice; noticeEl.hidden = false; }
 
   const lineCount = tab.source.split('\n').length;
   const bytes = new Blob([tab.source]).size;

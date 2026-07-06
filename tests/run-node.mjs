@@ -171,5 +171,25 @@ t('preprocessMarkdown leaves ~~~ fences untouched', () => {
   eq(T.preprocessMarkdown(md), md);
 });
 
+/* ===== v1.1: json renderer ===== */
+t('tokenizeJSON distinguishes keys from string values', () => {
+  const toks = T.tokenizeJSON('{"a": "b"}').filter(x => x.t !== 'ws' && x.t !== 'punct');
+  eq(toks.map(x => x.t), ['func', 'string']);
+});
+t('tokenizeJSON numbers and literals', () => {
+  const toks = T.tokenizeJSON('[1.5e2, true, null]').filter(x => x.t === 'number' || x.t === 'keyword');
+  eq(toks.map(x => x.v), ['1.5e2', 'true', 'null']);
+});
+t('jsonOutline lists top-level keys with lines', () => {
+  const src = '{\n  "alpha": 1,\n  "beta": { "inner": 2 }\n}';
+  const entries = T.jsonOutline(T.tokenizeJSON(src));
+  eq(entries.map(e => [e.label, e.line]), [['alpha', 2], ['beta', 3]]);
+});
+t('tokensToLines splits multi-line tokens and escapes', () => {
+  const lines = T.tokensToLines([{ t: 'string', v: '"a\nb<c"' }]);
+  eq(lines.length, 2);
+  ok(lines[1].includes('&lt;c'));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

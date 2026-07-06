@@ -283,6 +283,16 @@
     A.closeFindBar(); A.toggleEdit(); A.closeTab(id);
   });
 
+  t('json tab renders colored keys, outline, and invalid-json notice', () => {
+    const id = A.addTab({ name: 'bad.json', source: '{\n  "alpha": 1,\n  "beta": oops\n}' });
+    ok(document.querySelector('.lc .t-func'), 'key colored');
+    const links = [...document.querySelectorAll('#outline .o-item a')].map(a => a.textContent);
+    ok(links.includes('alpha') && links.includes('beta'), 'outline keys');
+    const notice = document.getElementById('notice');
+    ok(!notice.hidden && notice.textContent.startsWith('Not valid JSON'), 'invalid notice shown');
+    A.closeTab(id);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {
