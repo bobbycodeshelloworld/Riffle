@@ -42,6 +42,16 @@
     ok(document.getElementById('drop-hint').style.display !== 'none');
   });
 
+  t('sql tab renders token spans and outline', () => {
+    const id = A.addTab({ name: 'demo.sql', source: '-- ====\n-- Core\n-- ====\nCREATE TABLE users (id int);\nSELECT 1;' });
+    ok(document.querySelector('.lc .t-keyword'), 'keyword tokens colored');
+    const links = [...document.querySelectorAll('#outline .o-item a')].map(a => a.textContent);
+    ok(links.some(l => l.includes('CREATE TABLE users')), 'outline lists statement, got: ' + links.join('|'));
+    ok(document.querySelector('#outline .o-item.section'), 'banner section present');
+    ok(document.querySelector('#outline .o-copy'), 'statement copy chip present');
+    A.closeTab(id);
+  });
+
   window.confirm = realConfirm;
 
   const failCount = results.filter(r => r.err).length;

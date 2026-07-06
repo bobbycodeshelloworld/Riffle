@@ -64,5 +64,40 @@ t('rendererFor falls back to plaintext for unknown ext', () => {
   ok(T.rendererFor('xyz') === T.rendererFor(''));
 });
 
+/* ===== Task 3: sql renderer ===== */
+t('tokenizeSQL basic statement', () => {
+  const toks = T.tokenizeSQL('SELECT 1;').filter(x => x.t !== 'ws');
+  eq(toks.map(x => x.t), ['keyword', 'number', 'punct']);
+});
+t('tokenizeSQL dollar quoting stays one token', () => {
+  const toks = T.tokenizeSQL('DO $$ select 1; $$;').filter(x => x.t === 'dollar');
+  eq(toks.length, 1);
+  ok(toks[0].v.includes('select 1;'));
+});
+t('tokenizeSQL E-string escapes', () => {
+  const toks = T.tokenizeSQL("E'a\\'b' ").filter(x => x.t === 'string');
+  eq(toks.length, 1);
+});
+t('tokenizeSQL tracks line numbers', () => {
+  const toks = T.tokenizeSQL('SELECT 1;\n\nSELECT 2;').filter(x => x.t === 'keyword');
+  eq(toks.map(x => x.line), [1, 3]);
+});
+t('highlightToLines splits multi-line comment per line', () => {
+  const lines = T.highlightToLines('/* a\nb */');
+  eq(lines.length, 2);
+  ok(lines[0].includes('t-comment') && lines[1].includes('t-comment'));
+});
+t('buildSQLOutline labels CREATE TABLE with name', () => {
+  const entries = T.buildSQLOutline('CREATE TABLE IF NOT EXISTS public.users (id int);');
+  eq(entries.length, 1);
+  eq(entries[0].label, 'CREATE TABLE public.users');
+  eq(entries[0].line, 1);
+});
+t('buildSQLOutline emits banner sections', () => {
+  const sql = '-- ============\n-- User tables\n-- ============\nCREATE TABLE users (id int);';
+  const kinds = T.buildSQLOutline(sql).map(e => e.kind);
+  eq(kinds, ['section', 'stmt']);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

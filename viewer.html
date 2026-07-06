@@ -400,6 +400,224 @@ function decodeSeed(seed) {
 Object.assign(window.__TEST__, { decodeSeed, rendererFor, plaintextRenderer });
 
 /* ════════════════════════════════════════════════════════════
+   RENDERERS · sql
+   ════════════════════════════════════════════════════════════ */
+/* ============================================================
+   SQL tokenizer — offline, PostgreSQL-aware.
+   Handles: -- line comments, block comments, '...' strings
+   (with '' and E'\' escapes), "quoted idents", $$..$$ /
+   $tag$..$tag$ dollar-quoting, $1 params, numbers, keywords,
+   types, function calls, identifiers, punctuation.
+   ============================================================ */
+const KEYWORDS = new Set(("ABORT ACTION ADD AFTER ALL ALTER ANALYZE AND ANY AS ASC " +
+  "ATOMIC AUTHORIZATION BEGIN BETWEEN BOTH BY CALL CASCADE CASE CAST CHECK CLOSE " +
+  "CLUSTER COLLATE COLUMN COMMENT COMMIT CONCURRENTLY CONFLICT CONSTRAINT COPY CREATE " +
+  "CROSS CURRENT CURSOR DATABASE DECLARE DEFAULT DEFERRABLE DELETE DESC DISTINCT DO " +
+  "DOMAIN DROP EACH ELSE ELSIF ENABLE END EXCEPT EXCEPTION EXCLUDE EXECUTE EXISTS " +
+  "EXPLAIN EXTENSION FALSE FETCH FILTER FIRST FOR FOREIGN FROM FULL FUNCTION GENERATED " +
+  "GRANT GROUP GROUPING HAVING IF ILIKE IMMUTABLE IN INDEX INHERIT INITIALLY INNER " +
+  "INSERT INSTEAD INTERSECT INTO INVOKER IS ISNULL JOIN KEY LANGUAGE LAST LATERAL " +
+  "LEADING LEFT LEVEL LIKE LIMIT LOOP MATCHED MATERIALIZED MERGE NATURAL NEW NEXT NO " +
+  "NOT NOTHING NOTNULL NULL NULLS OF OFFSET OLD ON ONLY OPERATOR OR ORDER OUTER OVER " +
+  "OWNED OWNER PARTITION PERFORM PLPGSQL POLICY PRECEDING PRIMARY PROCEDURE " +
+  "RAISE RANGE REASSIGN RECURSIVE REFERENCES REFRESH REINDEX RENAME REPLACE RESET " +
+  "RESTRICT RETURN RETURNING RETURNS REVOKE RIGHT ROLE ROLLBACK ROW ROWS RULE SCHEMA " +
+  "SECURITY SELECT SEQUENCE SESSION SET SETOF SHOW SOME STABLE START STRICT TABLE " +
+  "TABLESPACE TEMP TEMPORARY THEN TO TRAILING TRANSACTION TRIGGER TRUE TRUNCATE TYPE " +
+  "UNBOUNDED UNION UNIQUE UNLOGGED UPDATE USAGE USING VACUUM VALUES VARIADIC VIEW " +
+  "VOLATILE WHEN WHERE WHILE WINDOW WITH WITHOUT WORK").split(/\s+/));
+
+const TYPES = new Set(("ANYARRAY ANYELEMENT ARRAY BIGINT BIGSERIAL BIT BOOL BOOLEAN BOX " +
+  "BYTEA CHAR CHARACTER CIDR CIRCLE CITEXT DATE DECIMAL DOUBLE FLOAT FLOAT4 FLOAT8 HSTORE " +
+  "INET INT INT2 INT4 INT8 INTEGER INTERVAL JSON JSONB LINE LSEG MACADDR MONEY NUMERIC " +
+  "OID PATH POINT POLYGON PRECISION REAL SERIAL SERIAL4 SERIAL8 SMALLINT SMALLSERIAL TEXT " +
+  "TIME TIMESTAMP TIMESTAMPTZ TIMETZ TSQUERY TSVECTOR UUID VARBIT VARCHAR XML").split(/\s+/));
+
+const RE_WS     = /\s+/y;
+const RE_LINEC  = /--[^\n]*/y;
+const RE_BLOCKC = /\/\*[\s\S]*?\*\//y;
+const RE_DOLLAR = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/y;
+const RE_PARAM  = /\$\d+/y;
+const RE_NUM    = /0[xX][0-9a-fA-F]+|\d+\.\d+(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|\d+(?:[eE][+-]?\d+)?/y;
+const RE_IDENT  = /[A-Za-z_][A-Za-z0-9_$]*/y;
+
+function stickyAt(re, s, i) { re.lastIndex = i; const m = re.exec(s); return m ? m[0] : null; }
+
+function tokenizeSQL(s) {
+  const toks = [];
+  const n = s.length;
+  let i = 0, line = 1;
+  function push(t, v) { toks.push({ t, v, line }); for (let k = 0; k < v.length; k++) if (v.charCodeAt(k) === 10) line++; }
+
+  while (i < n) {
+    const c = s[i];
+
+    if (c === ' ' || c === '\t' || c === '\n' || c === '\r') {
+      const v = stickyAt(RE_WS, s, i); push('ws', v); i += v.length; continue;
+    }
+    if (c === '-' && s[i + 1] === '-') {
+      const v = stickyAt(RE_LINEC, s, i); push('comment', v); i += v.length; continue;
+    }
+    if (c === '/' && s[i + 1] === '*') {
+      let v = stickyAt(RE_BLOCKC, s, i);
+      if (v === null) v = s.slice(i);           // unterminated block comment → to EOF
+      push('comment', v); i += v.length; continue;
+    }
+    if (c === '$') {
+      const open = stickyAt(RE_DOLLAR, s, i);
+      if (open !== null) {
+        const close = s.indexOf(open, i + open.length);
+        const end = close === -1 ? n : close + open.length;
+        push('dollar', s.slice(i, end)); i = end; continue;
+      }
+      const p = stickyAt(RE_PARAM, s, i);
+      if (p !== null) { push('param', p); i += p.length; continue; }
+      push('punct', c); i++; continue;
+    }
+    if (c === "'" || ((c === 'E' || c === 'e') && s[i + 1] === "'")) {
+      const isE = c !== "'";
+      let j = i + (isE ? 2 : 1);
+      while (j < n) {
+        const d = s[j];
+        if (isE && d === '\\') { j += 2; continue; }
+        if (d === "'") { if (s[j + 1] === "'") { j += 2; continue; } j++; break; }
+        j++;
+      }
+      push('string', s.slice(i, j)); i = j; continue;
+    }
+    if (c === '"') {
+      let j = i + 1;
+      while (j < n) { if (s[j] === '"') { if (s[j + 1] === '"') { j += 2; continue; } j++; break; } j++; }
+      push('qident', s.slice(i, j)); i = j; continue;
+    }
+    if ((c >= '0' && c <= '9') || (c === '.' && s[i + 1] >= '0' && s[i + 1] <= '9')) {
+      const v = stickyAt(RE_NUM, s, i);
+      if (v) { push('number', v); i += v.length; continue; }
+    }
+    const id = stickyAt(RE_IDENT, s, i);
+    if (id !== null) {
+      const up = id.toUpperCase();
+      let t = 'ident';
+      if (KEYWORDS.has(up)) t = 'keyword';
+      else if (TYPES.has(up)) t = 'type';
+      else { let k = i + id.length; while (k < n && (s[k] === ' ' || s[k] === '\t')) k++; if (s[k] === '(') t = 'func'; }
+      push(t, id); i += id.length; continue;
+    }
+    push('punct', c); i++;
+  }
+  return toks;
+}
+
+/* tokens → array of per-line HTML strings (multi-line tokens re-wrapped per line) */
+function highlightToLines(sql) {
+  const toks = tokenizeSQL(sql);
+  const lines = [''];
+  let cur = 0;
+  for (const { t, v } of toks) {
+    const parts = v.split('\n');
+    for (let k = 0; k < parts.length; k++) {
+      if (k > 0) { lines.push(''); cur++; }
+      const piece = parts[k];
+      if (piece === '') continue;
+      const esc = escapeHTML(piece);
+      lines[cur] += (t === 'ws') ? esc : '<span class="t-' + t + '">' + esc + '</span>';
+    }
+  }
+  return lines;
+}
+
+/* ============================================================
+   Outline — statements (split on top-level ;) + banner comments
+   ============================================================ */
+function hasRule(v) { return /[=#*~_-]{3,}/.test(v); }
+function hasLetters(v) { return /[A-Za-z]/.test(v); }
+function commentLabel(v) {
+  const s = v.replace(/^\/\*+/, '').replace(/\*+\/$/, '').replace(/^\s*--+/, '').replace(/[=*~_#-]{2,}/g, ' ');
+  return truncate(s, 42);
+}
+
+function labelForStatement(sig) {
+  const SKIP = new Set(['IF', 'NOT', 'EXISTS']);   // de-noise "CREATE TABLE IF NOT EXISTS x"
+  const words = [];
+  let i = 0;
+  while (i < sig.length && (sig[i].t === 'keyword' || sig[i].t === 'type')) {
+    const w = sig[i].v.toUpperCase();
+    if (!SKIP.has(w)) words.push(w);
+    i++;
+    if (words.length >= 6) break;
+  }
+  // object name: dotted path (schema.table) of idents/quoted idents
+  const nameParts = [];
+  while (i < sig.length && (sig[i].t === 'ident' || sig[i].t === 'qident' || sig[i].t === 'func')) {
+    nameParts.push(sig[i].v); i++;
+    if (sig[i] && sig[i].t === 'punct' && sig[i].v === '.') { nameParts.push('.'); i++; continue; }
+    break;
+  }
+  let name = nameParts.join('');
+  if (!name && sig[i] && sig[i].t === 'dollar') name = '$$…$$';
+  const label = (words.join(' ') + (name ? ' ' + name : '')).trim();
+  return label ? truncate(label, 46) : null;
+}
+
+function buildSQLOutline(sql) {
+  const toks = tokenizeSQL(sql);
+  const entries = [];
+  let stmt = [];
+  let block = null;   // leading run of consecutive comment lines
+  const flush = () => {
+    const sig = stmt.filter(t => t.t !== 'ws' && t.t !== 'comment');
+    if (sig.length) {
+      const label = labelForStatement(sig);
+      if (label) entries.push({ label, line: sig[0].line, kind: 'stmt', text: stmt.map(t => t.v).join('').trim() });
+    }
+    stmt = [];
+  };
+  // Emit ONE section per banner-style comment block (a block containing a rule
+  // run like `-- ====`), labeled by its first line that has actual words.
+  const closeBlock = () => {
+    if (block && block.texts.some(hasRule)) {
+      for (const t of block.texts) {
+        for (const ln of t.split('\n')) {
+          if (hasLetters(ln) && !/^[\s=#*~_-]+$/.test(ln)) {
+            const lab = commentLabel(ln);
+            if (lab) { entries.push({ label: lab, line: block.line, kind: 'section' }); block = null; return; }
+          }
+        }
+      }
+    }
+    block = null;
+  };
+  for (const tk of toks) {
+    const fresh = stmt.every(t => t.t === 'ws' || t.t === 'comment');
+    if (tk.t === 'comment' && fresh) {
+      if (!block) block = { line: tk.line, texts: [] };
+      block.texts.push(tk.v);
+    } else if (tk.t !== 'ws') {
+      closeBlock();
+    }
+    stmt.push(tk);
+    if (tk.t === 'punct' && tk.v === ';') flush();
+  }
+  closeBlock();
+  flush();
+  return entries;
+}
+
+const sqlRenderer = {
+  render(source) {
+    const bodyEl = buildCodeScroll(highlightToLines(source));
+    const entries = buildSQLOutline(source).map(e =>
+      ({ label: e.label, line: e.line, kind: e.kind, text: e.text,
+         level: e.kind === 'section' ? 1 : 2 }));
+    const stmtCount = entries.filter(e => e.kind === 'stmt').length;
+    return { bodyEl, outline: entries, outlineTitle: 'Statements (' + stmtCount + ')' };
+  }
+};
+RENDERERS.sql = RENDERERS.ddl = RENDERERS.pgsql = RENDERERS.psql = sqlRenderer;
+
+Object.assign(window.__TEST__, { tokenizeSQL, highlightToLines, buildSQLOutline, sqlRenderer });
+
+/* ════════════════════════════════════════════════════════════
    CORE · rendering primitives (ported from sql-viewer.html)
    ════════════════════════════════════════════════════════════ */
 let outlineLinks = [];   // { a, line } for scrollspy
