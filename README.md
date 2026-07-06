@@ -1,10 +1,11 @@
-# MD+SQL Viewer
+# Riffle
 
-One self-contained HTML file that opens, renders, and edits Markdown and SQL.
-No install, no build, no dependencies, no network — clone and double-click.
+**Riffle through your files.** One self-contained HTML file that opens,
+renders, and edits Markdown, SQL, JSON, CSV, and diffs. No install, no build,
+no dependencies, no network — clone and double-click.
 
-**[Open `viewer.html` in your browser.](viewer.html)** Drag `.md` or `.sql`
-files in, or click *Open file(s)*. That's the whole setup.
+**[Open `viewer.html` in your browser.](viewer.html)** Drag files in, or
+click *Open file(s)*. That's the whole setup.
 
 ## What you get
 
@@ -21,7 +22,7 @@ files in, or click *Open file(s)*. That's the whole setup.
   browsers (Chrome, Edge, Arc, Brave) saving writes back to the original
   file; elsewhere the Save button honestly reads *Download copy*.
 - Tabs, drag-and-drop, `⌘F` find, auto dark/light, unknown text files open
-  as plain text. Everything lives in one ~105 KB `viewer.html`.
+  as plain text. Everything lives in one ~111 KB `viewer.html`.
 
 ## Editing & saving — browser support
 
@@ -39,8 +40,8 @@ you opened it and asks before clobbering.
 ./macos/build.sh
 ```
 
-builds `macos/MD+SQL Viewer.app`. Then: right-click any `.md` or `.sql` file
-→ **Get Info** → **Open with** → MD+SQL Viewer → **Change All…**. Double-clicked
+builds `macos/Riffle.app`. Then: right-click any `.md` or `.sql` file
+→ **Get Info** → **Open with** → Riffle → **Change All…**. Double-clicked
 files open as read-mostly tabs (browser security means no direct file handle);
 use *Save As…* once to start saving in place, or open files from inside the
 app for full save-back.

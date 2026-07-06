@@ -1,9 +1,9 @@
 #!/bin/bash
 # seed-and-open.sh <template.html> [file.md|file.sql ...]
 #
-# Builds a temp copy of the MD+SQL Viewer HTML with the given file(s) injected
+# Builds a temp copy of the Riffle HTML with the given file(s) injected
 # as a window.__SEED__ array (base64), then opens it in the default browser.
-# Called by the "MD+SQL Viewer.app" AppleScript launcher; also usable directly.
+# Called by the "Riffle.app" AppleScript launcher; also usable directly.
 set -euo pipefail
 
 TEMPLATE="${1:-}"

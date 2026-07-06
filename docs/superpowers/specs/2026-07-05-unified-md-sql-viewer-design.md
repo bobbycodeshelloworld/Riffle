@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-05
 **Status:** Approved pending user review
-**Working title:** `md-sql-viewer` (final name TBD before repo goes public — see Open Questions)
+**Name:** **Riffle** (decided 2026-07-06; repo `riffle`, app `Riffle.app`, bundle `com.vanovian.riffle`)
 
 ## Context
 
@@ -58,7 +58,7 @@ edit mode.
 **One file is the app.** `viewer.html` contains four layers:
 
 ```
-viewer.html  (~105KB, ~1,460 lines, clear section banners)
+viewer.html  (~111KB, ~1,660 lines, clear section banners)
 ├── CSS          — shell styles + :root theme vars (auto dark/light, --t-* token
 │                  variable scheme carried over from sql-viewer)
 ├── VENDORED     — marked v18.0.5 UMD bundle (lib/marked.umd.js, ~43KB) inlined
@@ -103,7 +103,7 @@ view toggle after edits).
 ## Repo layout
 
 ```
-md-sql-viewer/                  (~200KB total; viewer.html is ~105KB of it)
+riffle/                         (~200KB total; viewer.html is ~111KB of it)
 ├── viewer.html                 ← the app
 ├── README.md                   — 30-second quickstart; per-OS setup below it
 ├── LICENSE                     — MIT (compatible with vendored marked)
@@ -116,7 +116,7 @@ md-sql-viewer/                  (~200KB total; viewer.html is ~105KB of it)
 │   ├── sample.md               — exercises TOC, tables, task lists, code fences
 │   └── sample.sql              — existing sample.sql (outline, dollar-quoting)
 └── macos/
-    ├── build.sh                — builds "MD+SQL Viewer.app"; registers .md + .sql
+    ├── build.sh                — builds "Riffle.app"; registers all supported types
     ├── launcher.applescript
     └── seed-and-open.sh
 ```
@@ -246,5 +246,5 @@ Editing/saving/find work identically (they're text tabs).
 
 ## Open questions
 
-1. **Name.** Working title `md-sql-viewer`. Decide before the repo goes public;
-   affects app name, bundle id, README title only.
+1. **Name.** ~~Working title `md-sql-viewer`.~~ **Resolved 2026-07-06: Riffle**
+   (repo `riffle`, app `Riffle.app`, bundle id `com.vanovian.riffle`).

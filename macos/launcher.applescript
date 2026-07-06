@@ -1,4 +1,4 @@
--- MD+SQL Viewer launcher
+-- Riffle launcher
 -- Double-clicking a .md or .sql file (when this app is the default opener) sends
 -- an open-document Apple Event -> `on open`. Double-clicking the app -> `on run`.
 -- Both route to the bundled seed-and-open.sh + viewer.html in Contents/Resources.

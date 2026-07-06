@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MD+SQL Viewer</title>
+<title>Riffle</title>
 <style>
 :root {
   /* Catppuccin Mocha — vibrant but cohesive dark */
@@ -292,7 +292,7 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
 <body>
 <header>
   <div class="brand-row">
-    <span class="brand">MD+SQL Viewer</span>
+    <span class="brand">Riffle</span>
     <span class="hint-kbd"><kbd>[</kbd> <kbd>]</kbd> switch · <kbd>x</kbd> close · <kbd>⌘E</kbd> edit · <kbd>⌘S</kbd> save · <kbd>⌘F</kbd> find</span>
     <span class="spacer"></span>
     <button class="copy-btn" id="copyAll" title="Copy the whole file to the clipboard (c)" hidden>
@@ -1277,7 +1277,7 @@ function renderActive() {
     contentHost.innerHTML = ''; outlineEl.innerHTML = ''; outlineLinks = [];
     metaEl.hidden = true; noticeEl.hidden = true; editNoteEl.hidden = true;
     dropHint.style.display = ''; tabsEl.hidden = true;
-    document.title = 'MD+SQL Viewer';
+    document.title = 'Riffle';
     updateHeaderButtons();
     return;
   }
@@ -1290,7 +1290,7 @@ function renderActive() {
     // Outline stays from the last render (static while editing); clicks jump lines.
     renderOutlinePane(tab.lastOutline, 'Outline', tab);
     metaEl.hidden = true;
-    document.title = tab.name + ' — MD+SQL Viewer';
+    document.title = tab.name + ' — Riffle';
     updateHeaderButtons();
     return;
   }
@@ -1326,7 +1326,7 @@ function renderActive() {
     '<span>' + lineCount.toLocaleString() + ' lines</span>' +
     '<span>' + formatBytes(bytes) + '</span>';
   metaEl.hidden = false;
-  document.title = tab.name + ' — MD+SQL Viewer';
+  document.title = tab.name + ' — Riffle';
   updateHeaderButtons();
   window.scrollTo(0, 0);
 }

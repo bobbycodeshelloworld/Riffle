@@ -1,12 +1,12 @@
 #!/bin/bash
-# build.sh — compile "MD+SQL Viewer.app" from launcher.applescript, bundle
+# build.sh — compile "Riffle.app" from launcher.applescript, bundle
 # viewer.html + the seed helper inside it, and register it as a handler for
 # Markdown, SQL, JSON, CSV/TSV, and diff/patch files.
 # Re-run any time you edit viewer.html.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP="MD+SQL Viewer.app"
+APP="Riffle.app"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
@@ -21,10 +21,10 @@ chmod +x "$APP/Contents/Resources/seed-and-open.sh"
 
 echo "› patching Info.plist (declare md/sql/json/csv/diff document types)"
 PLIST="$APP/Contents/Info.plist"
-"$PLIST_BUDDY" -c "Set :CFBundleName MD+SQL Viewer" "$PLIST" 2>/dev/null \
-  || "$PLIST_BUDDY" -c "Add :CFBundleName string 'MD+SQL Viewer'" "$PLIST"
-"$PLIST_BUDDY" -c "Set :CFBundleIdentifier com.vanovian.mdsqlviewer" "$PLIST" 2>/dev/null \
-  || "$PLIST_BUDDY" -c "Add :CFBundleIdentifier string com.vanovian.mdsqlviewer" "$PLIST"
+"$PLIST_BUDDY" -c "Set :CFBundleName Riffle" "$PLIST" 2>/dev/null \
+  || "$PLIST_BUDDY" -c "Add :CFBundleName string 'Riffle'" "$PLIST"
+"$PLIST_BUDDY" -c "Set :CFBundleIdentifier com.vanovian.riffle" "$PLIST" 2>/dev/null \
+  || "$PLIST_BUDDY" -c "Add :CFBundleIdentifier string com.vanovian.riffle" "$PLIST"
 # osacompile seeds a default CFBundleDocumentTypes — drop it and add our own.
 "$PLIST_BUDDY" -c "Delete :CFBundleDocumentTypes" "$PLIST" 2>/dev/null || true
 "$PLIST_BUDDY" -c "Add :CFBundleDocumentTypes array" "$PLIST"
@@ -70,4 +70,4 @@ echo "› registering with LaunchServices"
 
 echo "✓ built $(pwd)/$APP"
 echo "  Set it as your default opener: right-click a .md, .sql, .json, .csv or .diff file → Get Info →"
-echo "  Open with → MD+SQL Viewer → Change All. (See README.md.)"
+echo "  Open with → Riffle → Change All. (See README.md.)"

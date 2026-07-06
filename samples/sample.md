@@ -1,4 +1,4 @@
-# MD+SQL Viewer sample
+# Riffle sample
 
 A quick tour of what the viewer renders. Open this file, then press `⌘E` to
 see the same content as editable source.
