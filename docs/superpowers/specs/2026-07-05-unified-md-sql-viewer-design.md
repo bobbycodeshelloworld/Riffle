@@ -180,6 +180,11 @@ Power-edit sessions start from inside the app in Chromium.
 - **Seed decode failure** → error toast; app remains usable.
 - **Save failure** (permission denied, write error) → tab stays dirty; offer
   Save As… / Download. Edits are never silently dropped.
+- **Untrusted markdown (XSS)** → after marked parses, a scrub pass removes
+  script-capable elements (script/iframe/object/embed/form/base/link/meta/style),
+  all `on*` attributes, `javascript:`/non-image `data:` URLs from href/src.
+  The tag allowlist in sanitizeAngles filters names only; the scrub is the
+  actual security boundary.
 
 ## Testing
 

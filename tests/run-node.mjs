@@ -128,5 +128,21 @@ t('headingLineFor finds next ATX heading of level', () => {
   eq(T.headingLineFor(lines, 3, 0), null);
 });
 
+/* ===== Security: URL predicates ===== */
+t('isSafeUrl href: https/mailto/# ok, javascript blocked', () => {
+  ok(T.isSafeUrl('https://example.com', 'href'));
+  ok(T.isSafeUrl('mailto:a@b.c', 'href'));
+  ok(T.isSafeUrl('#section', 'href'));
+  ok(!T.isSafeUrl('javascript:alert(1)', 'href'));
+  ok(!T.isSafeUrl(' javascript:alert(1)', 'href'));
+  ok(!T.isSafeUrl('data:text/html,<script>x</script>', 'href'));
+});
+t('isSafeUrl src: https/data-image ok, others blocked', () => {
+  ok(T.isSafeUrl('https://example.com/x.png', 'src'));
+  ok(T.isSafeUrl('data:image/png;base64,AAAA', 'src'));
+  ok(!T.isSafeUrl('data:text/html,x', 'src'));
+  ok(!T.isSafeUrl('javascript:alert(1)', 'src'));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

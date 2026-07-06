@@ -63,6 +63,16 @@
     A.closeTab(id);
   });
 
+  t('md renderer scrubs active HTML (XSS)', () => {
+    const id = A.addTab({ name: 'evil.md', source: '# t\n\n<img src=x onerror="window.__pwned=1">\n\n<a href="javascript:alert(1)">c</a>\n\n<details open ontoggle="window.__pwned=2">d</details>' });
+    ok(!window.__pwned, 'no handler executed');
+    const host = document.getElementById('content-host');
+    ok(!host.querySelector('[onerror],[ontoggle],[onclick]'), 'no on* attributes survive');
+    const a = [...host.querySelectorAll('a')].find(x => x.textContent === 'c');
+    ok(a && !a.hasAttribute('href'), 'javascript: href removed');
+    A.closeTab(id);
+  });
+
   window.confirm = realConfirm;
 
   const failCount = results.filter(r => r.err).length;

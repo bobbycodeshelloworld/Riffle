@@ -736,7 +736,34 @@ function slugify(s) {
     .replace(/^-+|-+$/g, '') || 'section';
 }
 
+/* ── Security scrub ──────────────────────────────────────────
+   marked passes raw HTML through and HTML_ALLOW only filters tag
+   NAMES — attributes ride along. Strip active content after parse:
+   on* handlers, javascript:/data:text hrefs, non-image src, and
+   containers that can execute or navigate. Runs on the detached
+   article before it is attached to the document. */
+const SAFE_URL = {
+  href: /^(https?:|mailto:|#)/i,
+  src: /^(https?:|data:image\/)/i,
+};
+function isSafeUrl(value, kind) {
+  const re = SAFE_URL[kind];
+  return re ? re.test(String(value).trim()) : false;
+}
+function scrubActiveContent(root) {
+  root.querySelectorAll('script, iframe, object, embed, form, base, link, meta, style').forEach(el => el.remove());
+  root.querySelectorAll('*').forEach(el => {
+    for (const attr of Array.from(el.attributes)) {
+      const n = attr.name.toLowerCase();
+      if (n.startsWith('on')) { el.removeAttribute(attr.name); continue; }
+      if (n === 'href' && !isSafeUrl(attr.value, 'href')) el.removeAttribute(attr.name);
+      if ((n === 'src' || n === 'srcset') && !isSafeUrl(attr.value, 'src')) el.removeAttribute(attr.name);
+    }
+  });
+}
+
 function processContent(root) {
+  scrubActiveContent(root);
   const used = new Set();
   root.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
     let base = slugify(h.textContent);
@@ -827,7 +854,7 @@ const mdRenderer = {
 };
 RENDERERS.md = RENDERERS.markdown = RENDERERS.mdown = RENDERERS.mkd = mdRenderer;
 
-Object.assign(window.__TEST__, { preprocessMarkdown, sanitizeAngles, slugify, maskFences, headingLineFor, mdRenderer });
+Object.assign(window.__TEST__, { preprocessMarkdown, sanitizeAngles, slugify, maskFences, headingLineFor, mdRenderer, isSafeUrl, scrubActiveContent });
 
 /* ════════════════════════════════════════════════════════════
    CORE · rendering primitives (ported from sql-viewer.html)
