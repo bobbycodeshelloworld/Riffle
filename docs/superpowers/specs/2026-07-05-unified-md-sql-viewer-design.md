@@ -58,7 +58,7 @@ edit mode.
 **One file is the app.** `viewer.html` contains four layers:
 
 ```
-viewer.html  (~150KB, ~2,500–3,000 lines, clear section banners)
+viewer.html  (~105KB, ~1,460 lines, clear section banners)
 ├── CSS          — shell styles + :root theme vars (auto dark/light, --t-* token
 │                  variable scheme carried over from sql-viewer)
 ├── VENDORED     — marked v18.0.5 UMD bundle (lib/marked.umd.js, ~43KB) inlined
@@ -103,7 +103,7 @@ view toggle after edits).
 ## Repo layout
 
 ```
-md-sql-viewer/                  (~200KB total; viewer.html is ~150KB of it)
+md-sql-viewer/                  (~200KB total; viewer.html is ~105KB of it)
 ├── viewer.html                 ← the app
 ├── README.md                   — 30-second quickstart; per-OS setup below it
 ├── LICENSE                     — MIT (compatible with vendored marked)
