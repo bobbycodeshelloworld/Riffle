@@ -11,6 +11,7 @@
   --code-bg: #11111b; --sel: rgba(203,166,247,0.28);
   --tab-active-ink: #f5e0dc; --tab-idle-ink: #a6adc8; --tab-hover-ink: #f5c2e7;
   --gutter-ink: #585b70; --flash: rgba(203,166,247,0.16);
+  --chrome-bg: #181825; --chrome-ink: #cdd6f4; --chrome-muted: #a6adc8; --chrome-border: #313244;
   /* SQL token colors (dark) */
   --t-comment: #7f849c; --t-string: #a6e3a1; --t-dollar: #a6e3a1;
   --t-number: #fab387; --t-param: #f5c2e7; --t-keyword: #cba6f7;
@@ -26,6 +27,8 @@
     --code-bg: #e6e9ef; --sel: rgba(136,57,239,0.16);
     --tab-active-ink: #8839ef; --tab-idle-ink: #6c6f85; --tab-hover-ink: #4c4f69;
     --gutter-ink: #9ca0b0; --flash: rgba(136,57,239,0.12);
+    /* chrome surfaces use the DARK mode's palette (dark header/tabs/panel on light content) */
+    --chrome-bg: #181825; --chrome-ink: #cdd6f4; --chrome-muted: #a6adc8; --chrome-border: #313244;
     --t-comment: #8c8fa1; --t-string: #40a02b; --t-dollar: #40a02b;
     --t-number: #fe640b; --t-param: #ea76cb; --t-keyword: #8839ef;
     --t-type: #df8e1d; --t-func: #1e66f5; --t-ident: #4c4f69;
@@ -40,11 +43,11 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
 
 /* ============ HEADER ============ */
 header { position: sticky; top: 0; z-index: 20;
-  background: var(--panel); border-bottom: 1px solid var(--border); }
+  background: var(--chrome-bg); border-bottom: 1px solid var(--chrome-border); }
 .brand-row { display: flex; align-items: center; gap: 14px;
-  padding: 10px 20px; border-bottom: 1px solid var(--border); }
+  padding: 10px 20px; border-bottom: 1px solid var(--chrome-border); }
 .brand { font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
-  color: var(--muted); text-transform: uppercase; }
+  color: var(--chrome-muted); text-transform: uppercase; }
 .spacer { flex: 1; }
 .ghost-btn { font-size: 12px; padding: 6px 12px; border: 1px solid var(--border);
   background: transparent; color: var(--ink); border-radius: 6px;
@@ -61,10 +64,11 @@ header { position: sticky; top: 0; z-index: 20;
 .copy-btn:active { transform: translateY(1px); }
 .copy-btn.copied { background: transparent; color: var(--accent); }
 .copy-btn svg { width: 13px; height: 13px; }
+#settingsBtn { font-size: 20px; line-height: 1; padding: 3px 11px; }
 input[type=file] { display: none; }
-.hint-kbd { font-size: 11px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
-.hint-kbd kbd { padding: 1px 5px; border: 1px solid var(--border); border-radius: 3px;
-  background: var(--bg); font-size: 10px; }
+.hint-kbd { font-size: 11px; color: var(--chrome-muted); font-family: ui-monospace, Menlo, monospace; }
+.hint-kbd kbd { padding: 1px 5px; border: 1px solid var(--chrome-border); border-radius: 3px;
+  background: var(--chrome-bg); font-size: 10px; }
 
 /* ============ TABS ============ */
 .tabs-row { display: flex; align-items: stretch; overflow-x: auto;
@@ -76,7 +80,7 @@ input[type=file] { display: none; }
   border-bottom: 2px solid transparent; color: var(--tab-idle-ink); cursor: pointer;
   font-family: ui-monospace, Menlo, monospace; font-size: 12px;
   white-space: nowrap; transition: color 0.12s, border-color 0.12s; max-width: 280px; }
-.tab:hover { color: var(--tab-hover-ink); border-bottom-color: var(--border); }
+.tab:hover { color: var(--tab-hover-ink); border-bottom-color: var(--chrome-border); }
 .tab.active { color: var(--tab-active-ink); border-bottom-color: var(--accent); font-weight: 600; }
 .tab-name { overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
 .tab-close { display: inline-flex; align-items: center; justify-content: center;
@@ -87,7 +91,7 @@ input[type=file] { display: none; }
 .tab-close:hover { background: var(--border); color: var(--ink); }
 
 /* ============ LAYOUT ============ */
-.body-layout { display: grid; grid-template-columns: minmax(0,1fr) 260px;
+.body-layout { display: grid; grid-template-columns: 260px minmax(0,1fr);
   max-width: 1400px; margin: 0 auto; gap: 32px; padding: 28px 24px 120px; }
 @media (max-width: 900px) {
   .body-layout { grid-template-columns: minmax(0,1fr); }
@@ -136,7 +140,7 @@ main { min-width: 0; }
 #outline { position: sticky; top: 110px; align-self: start;
   max-height: calc(100vh - 130px); overflow-y: auto;
   font-size: 13px; line-height: 1.5;
-  border-left: 1px solid var(--border); padding-left: 18px; }
+  border-right: 1px solid var(--border); padding-right: 18px; }
 #outline .o-title { font-size: 11px; font-weight: 700; letter-spacing: 1px;
   color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
 #outline ul { list-style: none; padding: 0; margin: 0; }
@@ -247,14 +251,15 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
 
 /* ============ FIND BAR ============ */
 #findbar { display: flex; align-items: center; gap: 8px; padding: 6px 20px;
-  border-top: 1px solid var(--border); background: var(--panel); }
+  border-top: 1px solid var(--chrome-border); background: var(--chrome-bg); }
 #findbar[hidden] { display: none; }
 #find-input { flex: 0 1 340px; font: 12px ui-monospace, Menlo, monospace;
-  padding: 5px 9px; color: var(--ink); background: var(--bg);
-  border: 1px solid var(--border); border-radius: 6px; outline: none; }
+  padding: 5px 9px; color: var(--chrome-ink); background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border); border-radius: 6px; outline: none; }
 #find-input:focus { border-color: var(--accent); }
-#find-count { font: 11px ui-monospace, Menlo, monospace; color: var(--muted); min-width: 64px; }
+#find-count { font: 11px ui-monospace, Menlo, monospace; color: var(--chrome-muted); min-width: 64px; }
 .find-nav { padding: 4px 9px; }
+#findbar .ghost-btn { color: var(--chrome-ink); border-color: var(--chrome-border); }
 
 /* ============ EDITOR ============ */
 .editor-wrap { display: flex; background: var(--code-bg);
@@ -278,7 +283,7 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
 #edit-note { margin: 10px 0 0; font-size: 11.5px; color: var(--muted);
   font-family: ui-monospace, Menlo, monospace; }
 #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-  padding: 9px 16px; font-size: 12.5px; color: var(--ink); background: var(--panel);
+  padding: 9px 16px; font-size: 12.5px; color: var(--chrome-ink); background: var(--chrome-bg);
   border: 1px solid var(--accent); border-radius: 8px; z-index: 2000; }
 
 /* ============ OUTLINE INDENT (markdown levels) ============ */
@@ -290,24 +295,24 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
 
 /* ============ SETTINGS PANEL ============ */
 #settings-panel { position: absolute; right: 16px; top: 52px; z-index: 40;
-  width: 300px; max-height: 70vh; overflow-y: auto; background: var(--panel);
-  border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+  width: 300px; max-height: 70vh; overflow-y: auto; background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border); border-radius: 10px; padding: 14px 16px;
   box-shadow: 0 12px 32px rgba(0,0,0,0.35); }
 #settings-panel h4 { margin: 12px 0 6px; font-size: 10.5px; text-transform: uppercase;
-  letter-spacing: 1px; color: var(--muted); }
+  letter-spacing: 1px; color: var(--chrome-muted); }
 #settings-panel h4:first-child { margin-top: 0; }
 .theme-row { display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 6px 8px; margin: 1px 0; border: 1px solid transparent; border-radius: 6px;
-  background: transparent; color: var(--ink); font: 12.5px -apple-system, sans-serif;
+  background: transparent; color: var(--chrome-ink); font: 12.5px -apple-system, sans-serif;
   cursor: pointer; text-align: left; }
-.theme-row:hover { border-color: var(--border); }
+.theme-row:hover { border-color: var(--chrome-border); }
 .theme-row.active { border-color: var(--accent); }
 .swatch { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
   border: 1px solid rgba(127,127,127,0.35); }
 .seg-row { display: flex; gap: 4px; }
-.seg-btn { flex: 1; padding: 5px 0; font-size: 11.5px; border: 1px solid var(--border);
-  background: transparent; color: var(--muted); border-radius: 6px; cursor: pointer; }
-.seg-btn.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.seg-btn { flex: 1; padding: 5px 0; font-size: 11.5px; border: 1px solid var(--chrome-border);
+  background: transparent; color: var(--chrome-muted); border-radius: 6px; cursor: pointer; }
+.seg-btn.active { border-color: var(--accent); color: var(--chrome-ink); font-weight: 600; }
 
 /* ============ SETTINGS CONSUMERS ============ */
 .code-scroll, .editor-gutter, .editor-ta { font-size: calc(12.8px * var(--font-scale, 1)); }
@@ -327,10 +332,10 @@ body.wrap .lc { white-space: pre-wrap; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
       <span>Copy file</span>
     </button>
-    <button class="ghost-btn" id="editToggle" title="Toggle edit mode (⌘E)" hidden>Edit</button>
+    <button class="copy-btn" id="editToggle" title="Toggle edit mode (⌘E)" hidden>Edit</button>
     <button class="copy-btn" id="saveBtn" title="Save (⌘S)" hidden><span>Save</span></button>
-    <button class="ghost-btn" id="settingsBtn" title="Settings">⚙</button>
-    <button class="ghost-btn" id="openBtn" title="Open files (⌘O)">Open file(s)</button>
+    <button class="copy-btn" id="openBtn" title="Open files (⌘O)">Open file(s)</button>
+    <button class="copy-btn" id="settingsBtn" title="Settings">⚙</button>
     <input type="file" id="picker" accept=".md,.markdown,.mdown,.mkd,.sql,.ddl,.pgsql,.psql,.txt,.json,.geojson,.csv,.tsv,.diff,.patch" multiple>
   </div>
   <nav class="tabs-row" id="tabs" aria-label="Open files" hidden></nav>
@@ -345,6 +350,7 @@ body.wrap .lc { white-space: pre-wrap; }
 </header>
 
 <div class="body-layout">
+  <aside id="outline"></aside>
   <main id="main">
     <div id="file-meta" class="file-meta" hidden></div>
     <div id="notice" hidden></div>
@@ -355,7 +361,6 @@ body.wrap .lc { white-space: pre-wrap; }
       <div class="sub">or click <em>Open file(s)</em> above · multiple files open as tabs</div>
     </div>
   </main>
-  <aside id="outline"></aside>
 </div>
 <div id="toast" hidden></div>
 
@@ -1551,7 +1556,8 @@ function refreshFindForActiveTab() {
    ════════════════════════════════════════════════════════════ */
 const VAR_SCHEMA = ['bg', 'panel', 'ink', 'muted', 'border', 'accent', 'accent-ink',
   'code-bg', 'sel', 'tab-active-ink', 'tab-idle-ink', 'tab-hover-ink', 'gutter-ink',
-  'flash', 't-comment', 't-string', 't-dollar', 't-number', 't-param', 't-keyword',
+  'flash', 'chrome-bg', 'chrome-ink', 'chrome-muted', 'chrome-border',
+  't-comment', 't-string', 't-dollar', 't-number', 't-param', 't-keyword',
   't-type', 't-func', 't-ident', 't-qident', 't-punct', 't-add', 't-del', 't-hunk', 't-filehdr'];
 
 const THEMES = {
@@ -1563,6 +1569,7 @@ const THEMES = {
       'code-bg': '#11111b', 'sel': 'rgba(203,166,247,0.28)',
       'tab-active-ink': '#f5e0dc', 'tab-idle-ink': '#a6adc8', 'tab-hover-ink': '#f5c2e7',
       'gutter-ink': '#585b70', 'flash': 'rgba(203,166,247,0.16)',
+      'chrome-bg': '#181825', 'chrome-ink': '#cdd6f4', 'chrome-muted': '#a6adc8', 'chrome-border': '#313244',
       't-comment': '#7f849c', 't-string': '#a6e3a1', 't-dollar': '#a6e3a1',
       't-number': '#fab387', 't-param': '#f5c2e7', 't-keyword': '#cba6f7',
       't-type': '#f9e2af', 't-func': '#89b4fa', 't-ident': '#cdd6f4',
@@ -1570,16 +1577,17 @@ const THEMES = {
       't-add': '#a6e3a1', 't-del': '#f38ba8', 't-hunk': '#89b4fa', 't-filehdr': '#f9e2af',
     },
     light: {
-      'bg': '#eff1f5', 'panel': '#ffffff', 'ink': '#4c4f69', 'muted': '#6c6f85',
+      'bg': '#eff1f5', 'panel': '#f7f8fa', 'ink': '#4c4f69', 'muted': '#6c6f85',
       'border': '#ccd0da', 'accent': '#8839ef', 'accent-ink': '#ffffff',
-      'code-bg': '#e6e9ef', 'sel': 'rgba(136,57,239,0.16)',
-      'tab-active-ink': '#8839ef', 'tab-idle-ink': '#6c6f85', 'tab-hover-ink': '#4c4f69',
+      'code-bg': '#c4cbd9', 'sel': 'rgba(136,57,239,0.16)',
+      'tab-active-ink': '#f5e0dc', 'tab-idle-ink': '#a6adc8', 'tab-hover-ink': '#f5c2e7',
       'gutter-ink': '#9ca0b0', 'flash': 'rgba(136,57,239,0.12)',
-      't-comment': '#8c8fa1', 't-string': '#40a02b', 't-dollar': '#40a02b',
-      't-number': '#fe640b', 't-param': '#ea76cb', 't-keyword': '#8839ef',
-      't-type': '#df8e1d', 't-func': '#1e66f5', 't-ident': '#4c4f69',
-      't-qident': '#179299', 't-punct': '#6c6f85',
-      't-add': '#40a02b', 't-del': '#d20f39', 't-hunk': '#1e66f5', 't-filehdr': '#df8e1d',
+      'chrome-bg': '#181825', 'chrome-ink': '#cdd6f4', 'chrome-muted': '#a6adc8', 'chrome-border': '#313244',
+      't-comment': '#525464', 't-string': '#27611a', 't-dollar': '#27611a',
+      't-number': '#953701', 't-param': '#9c1879', 't-keyword': '#6c12e2',
+      't-type': '#774c10', 't-func': '#0949ca', 't-ident': '#4c4f69',
+      't-qident': '#0f5e63', 't-punct': '#525465',
+      't-add': '#27611a', 't-del': '#ab0c2f', 't-hunk': '#0949ca', 't-filehdr': '#774c10',
     },
   },
   slate: {
@@ -1590,6 +1598,7 @@ const THEMES = {
       'code-bg': '#0b0d11', 'sel': 'rgba(125,211,252,0.25)',
       'tab-active-ink': '#e6e8eb', 'tab-idle-ink': '#8b93a1', 'tab-hover-ink': '#c7cbd3',
       'gutter-ink': '#4b5563', 'flash': 'rgba(125,211,252,0.14)',
+      'chrome-bg': '#161a21', 'chrome-ink': '#e6e8eb', 'chrome-muted': '#8b93a1', 'chrome-border': '#252a33',
       't-comment': '#6b7280', 't-string': '#86efac', 't-dollar': '#86efac',
       't-number': '#fdba74', 't-param': '#f0abfc', 't-keyword': '#7dd3fc',
       't-type': '#fcd34d', 't-func': '#a5b4fc', 't-ident': '#e6e8eb',
@@ -1597,16 +1606,17 @@ const THEMES = {
       't-add': '#86efac', 't-del': '#fda4af', 't-hunk': '#a5b4fc', 't-filehdr': '#fcd34d',
     },
     light: {
-      'bg': '#fafaf7', 'panel': '#ffffff', 'ink': '#1a1d22', 'muted': '#5b6370',
+      'bg': '#f3f4f6', 'panel': '#f9fafb', 'ink': '#1a1d22', 'muted': '#5b6370',
       'border': '#e4e6eb', 'accent': '#0369a1', 'accent-ink': '#ffffff',
-      'code-bg': '#f3f4f6', 'sel': 'rgba(3,105,161,0.18)',
-      'tab-active-ink': '#0369a1', 'tab-idle-ink': '#5b6370', 'tab-hover-ink': '#1a1d22',
+      'code-bg': '#aab1c0', 'sel': 'rgba(3,105,161,0.18)',
+      'tab-active-ink': '#e6e8eb', 'tab-idle-ink': '#8b93a1', 'tab-hover-ink': '#c7cbd3',
       'gutter-ink': '#9ca3af', 'flash': 'rgba(3,105,161,0.10)',
-      't-comment': '#6b7280', 't-string': '#15803d', 't-dollar': '#15803d',
-      't-number': '#c2410c', 't-param': '#a21caf', 't-keyword': '#0369a1',
-      't-type': '#a16207', 't-func': '#4338ca', 't-ident': '#1a1d22',
-      't-qident': '#0f766e', 't-punct': '#5b6370',
-      't-add': '#15803d', 't-del': '#be123c', 't-hunk': '#4338ca', 't-filehdr': '#a16207',
+      'chrome-bg': '#161a21', 'chrome-ink': '#e6e8eb', 'chrome-muted': '#8b93a1', 'chrome-border': '#252a33',
+      't-comment': '#3f434c', 't-string': '#0d4e25', 't-dollar': '#0d4e25',
+      't-number': '#792908', 't-param': '#74147d', 't-keyword': '#02476e',
+      't-type': '#613b04', 't-func': '#372dab', 't-ident': '#1a1d22',
+      't-qident': '#0a4c47', 't-punct': '#3e444d',
+      't-add': '#0d4e25', 't-del': '#880d2b', 't-hunk': '#372dab', 't-filehdr': '#613b04',
     },
   },
   nord: {
@@ -1617,6 +1627,7 @@ const THEMES = {
       'code-bg': '#242832', 'sel': 'rgba(136,192,208,0.25)',
       'tab-active-ink': '#eceff4', 'tab-idle-ink': '#4c566a', 'tab-hover-ink': '#e5e9f0',
       'gutter-ink': '#434c5e', 'flash': 'rgba(136,192,208,0.14)',
+      'chrome-bg': '#3b4252', 'chrome-ink': '#d8dee9', 'chrome-muted': '#4c566a', 'chrome-border': '#434c5e',
       't-comment': '#616e88', 't-string': '#a3be8c', 't-dollar': '#a3be8c',
       't-number': '#d08770', 't-param': '#b48ead', 't-keyword': '#88c0d0',
       't-type': '#ebcb8b', 't-func': '#5e81ac', 't-ident': '#d8dee9',
@@ -1624,26 +1635,28 @@ const THEMES = {
       't-add': '#a3be8c', 't-del': '#bf616a', 't-hunk': '#5e81ac', 't-filehdr': '#ebcb8b',
     },
     light: {
-      'bg': '#eceff4', 'panel': '#ffffff', 'ink': '#2e3440', 'muted': '#4c566a',
+      'bg': '#eceff4', 'panel': '#f6f7fa', 'ink': '#2e3440', 'muted': '#4c566a',
       'border': '#d8dee9', 'accent': '#5e81ac', 'accent-ink': '#ffffff',
-      'code-bg': '#e5e9f0', 'sel': 'rgba(94,129,172,0.16)',
-      'tab-active-ink': '#5e81ac', 'tab-idle-ink': '#4c566a', 'tab-hover-ink': '#2e3440',
+      'code-bg': '#c1cbdb', 'sel': 'rgba(94,129,172,0.16)',
+      'tab-active-ink': '#eceff4', 'tab-idle-ink': '#4c566a', 'tab-hover-ink': '#e5e9f0',
       'gutter-ink': '#9aa6b8', 'flash': 'rgba(94,129,172,0.10)',
-      't-comment': '#4c566a', 't-string': '#5f8a4e', 't-dollar': '#5f8a4e',
-      't-number': '#a85d3a', 't-param': '#8f5a83', 't-keyword': '#5e81ac',
-      't-type': '#96731a', 't-func': '#3e5e86', 't-ident': '#2e3440',
-      't-qident': '#4f8483', 't-punct': '#4c566a',
-      't-add': '#5f8a4e', 't-del': '#a8434f', 't-hunk': '#3e5e86', 't-filehdr': '#96731a',
+      'chrome-bg': '#3b4252', 'chrome-ink': '#d8dee9', 'chrome-muted': '#4c566a', 'chrome-border': '#434c5e',
+      't-comment': '#4c566a', 't-string': '#405c34', 't-dollar': '#405c34',
+      't-number': '#7e462c', 't-param': '#714768', 't-keyword': '#3d5676',
+      't-type': '#6a5112', 't-func': '#39567b', 't-ident': '#2e3440',
+      't-qident': '#375b5b', 't-punct': '#4c566a',
+      't-add': '#405c34', 't-del': '#8e3843', 't-hunk': '#39567b', 't-filehdr': '#6a5112',
     },
   },
   solarized: {
     label: 'Solarized',
     dark: {
-      'bg': '#002b36', 'panel': '#073642', 'ink': '#839496', 'muted': '#586e75',
+      'bg': '#002b36', 'panel': '#062e38', 'ink': '#839496', 'muted': '#586e75',
       'border': '#0a4552', 'accent': '#268bd2', 'accent-ink': '#fdf6e3',
       'code-bg': '#00212a', 'sel': 'rgba(38,139,210,0.25)',
       'tab-active-ink': '#93a1a1', 'tab-idle-ink': '#586e75', 'tab-hover-ink': '#839496',
       'gutter-ink': '#586e75', 'flash': 'rgba(38,139,210,0.14)',
+      'chrome-bg': '#062e38', 'chrome-ink': '#839496', 'chrome-muted': '#586e75', 'chrome-border': '#0a4552',
       't-comment': '#586e75', 't-string': '#859900', 't-dollar': '#859900',
       't-number': '#cb4b16', 't-param': '#d33682', 't-keyword': '#268bd2',
       't-type': '#b58900', 't-func': '#6c71c4', 't-ident': '#839496',
@@ -1651,16 +1664,17 @@ const THEMES = {
       't-add': '#859900', 't-del': '#dc322f', 't-hunk': '#6c71c4', 't-filehdr': '#b58900',
     },
     light: {
-      'bg': '#fdf6e3', 'panel': '#ffffff', 'ink': '#657b83', 'muted': '#93a1a1',
+      'bg': '#fdf6e3', 'panel': '#fefbf1', 'ink': '#46555b', 'muted': '#93a1a1',
       'border': '#eee8d5', 'accent': '#268bd2', 'accent-ink': '#ffffff',
-      'code-bg': '#e3dcc5', 'sel': 'rgba(38,139,210,0.16)',
-      'tab-active-ink': '#586e75', 'tab-idle-ink': '#93a1a1', 'tab-hover-ink': '#657b83',
+      'code-bg': '#d2c7a3', 'sel': 'rgba(38,139,210,0.16)',
+      'tab-active-ink': '#93a1a1', 'tab-idle-ink': '#586e75', 'tab-hover-ink': '#839496',
       'gutter-ink': '#93a1a1', 'flash': 'rgba(38,139,210,0.10)',
-      't-comment': '#586e75', 't-string': '#6d7d00', 't-dollar': '#6d7d00',
-      't-number': '#cb4b16', 't-param': '#d33682', 't-keyword': '#1e6ea6',
-      't-type': '#8f6c00', 't-func': '#6c71c4', 't-ident': '#657b83',
-      't-qident': '#22837c', 't-punct': '#586e75',
-      't-add': '#6d7d00', 't-del': '#dc322f', 't-hunk': '#6c71c4', 't-filehdr': '#8f6c00',
+      'chrome-bg': '#062e38', 'chrome-ink': '#839496', 'chrome-muted': '#586e75', 'chrome-border': '#0a4552',
+      't-comment': '#44555b', 't-string': '#4d5800', 't-dollar': '#4d5800',
+      't-number': '#913510', 't-param': '#99215b', 't-keyword': '#185683',
+      't-type': '#694f00', 't-func': '#4348a7', 't-ident': '#46555b',
+      't-qident': '#185c58', 't-punct': '#44555b',
+      't-add': '#4d5800', 't-del': '#a11e1b', 't-hunk': '#4348a7', 't-filehdr': '#694f00',
     },
   },
   gruvbox: {
@@ -1671,6 +1685,7 @@ const THEMES = {
       'code-bg': '#1d2021', 'sel': 'rgba(211,134,155,0.25)',
       'tab-active-ink': '#ebdbb2', 'tab-idle-ink': '#a89984', 'tab-hover-ink': '#d5c4a1',
       'gutter-ink': '#665c54', 'flash': 'rgba(211,134,155,0.14)',
+      'chrome-bg': '#3c3836', 'chrome-ink': '#ebdbb2', 'chrome-muted': '#a89984', 'chrome-border': '#504945',
       't-comment': '#928374', 't-string': '#b8bb26', 't-dollar': '#b8bb26',
       't-number': '#fe8019', 't-param': '#b16286', 't-keyword': '#d3869b',
       't-type': '#fabd2f', 't-func': '#83a598', 't-ident': '#ebdbb2',
@@ -1678,16 +1693,17 @@ const THEMES = {
       't-add': '#b8bb26', 't-del': '#fb4934', 't-hunk': '#83a598', 't-filehdr': '#fabd2f',
     },
     light: {
-      'bg': '#fbf1c7', 'panel': '#ffffff', 'ink': '#3c3836', 'muted': '#7c6f64',
+      'bg': '#fbf1c7', 'panel': '#fdf8e3', 'ink': '#3c3836', 'muted': '#7c6f64',
       'border': '#d5c4a1', 'accent': '#b16286', 'accent-ink': '#ffffff',
-      'code-bg': '#ebdbb2', 'sel': 'rgba(177,98,134,0.16)',
-      'tab-active-ink': '#b16286', 'tab-idle-ink': '#7c6f64', 'tab-hover-ink': '#3c3836',
+      'code-bg': '#e1c98b', 'sel': 'rgba(177,98,134,0.16)',
+      'tab-active-ink': '#ebdbb2', 'tab-idle-ink': '#a89984', 'tab-hover-ink': '#d5c4a1',
       'gutter-ink': '#a89984', 'flash': 'rgba(177,98,134,0.10)',
-      't-comment': '#7c6f64', 't-string': '#79740e', 't-dollar': '#79740e',
-      't-number': '#af3a03', 't-param': '#8f3f71', 't-keyword': '#b16286',
-      't-type': '#a76a0e', 't-func': '#458588', 't-ident': '#3c3836',
-      't-qident': '#427b58', 't-punct': '#7c6f64',
-      't-add': '#79740e', 't-del': '#cc241d', 't-hunk': '#458588', 't-filehdr': '#a76a0e',
+      'chrome-bg': '#3c3836', 'chrome-ink': '#ebdbb2', 'chrome-muted': '#a89984', 'chrome-border': '#504945',
+      't-comment': '#5d544b', 't-string': '#5b570b', 't-dollar': '#5b570b',
+      't-number': '#993303', 't-param': '#853b69', 't-keyword': '#81405e',
+      't-type': '#774c0a', 't-func': '#305c5f', 't-ident': '#3c3836',
+      't-qident': '#335e44', 't-punct': '#5d544b',
+      't-add': '#5b570b', 't-del': '#a71d18', 't-hunk': '#305c5f', 't-filehdr': '#774c0a',
     },
   },
   everforest: {
@@ -1698,6 +1714,7 @@ const THEMES = {
       'code-bg': '#232a2e', 'sel': 'rgba(127,187,179,0.25)',
       'tab-active-ink': '#d3c6aa', 'tab-idle-ink': '#9da9a0', 'tab-hover-ink': '#ddd2b5',
       'gutter-ink': '#7a8478', 'flash': 'rgba(127,187,179,0.14)',
+      'chrome-bg': '#343f44', 'chrome-ink': '#d3c6aa', 'chrome-muted': '#9da9a0', 'chrome-border': '#475258',
       't-comment': '#7a8478', 't-string': '#a7c080', 't-dollar': '#a7c080',
       't-number': '#e69875', 't-param': '#d699b6', 't-keyword': '#7fbbb3',
       't-type': '#dbbc7f', 't-func': '#83c092', 't-ident': '#d3c6aa',
@@ -1705,16 +1722,17 @@ const THEMES = {
       't-add': '#a7c080', 't-del': '#e67e80', 't-hunk': '#83c092', 't-filehdr': '#dbbc7f',
     },
     light: {
-      'bg': '#fdf6e0', 'panel': '#ffffff', 'ink': '#475258', 'muted': '#939f91',
+      'bg': '#fdf6e0', 'panel': '#fefbf0', 'ink': '#475258', 'muted': '#939f91',
       'border': '#e0d9b6', 'accent': '#3a94c5', 'accent-ink': '#ffffff',
-      'code-bg': '#f4eed3', 'sel': 'rgba(58,148,197,0.16)',
-      'tab-active-ink': '#3a94c5', 'tab-idle-ink': '#939f91', 'tab-hover-ink': '#475258',
+      'code-bg': '#e9dda7', 'sel': 'rgba(58,148,197,0.16)',
+      'tab-active-ink': '#d3c6aa', 'tab-idle-ink': '#9da9a0', 'tab-hover-ink': '#ddd2b5',
       'gutter-ink': '#a4ad9e', 'flash': 'rgba(58,148,197,0.10)',
-      't-comment': '#7a8478', 't-string': '#6f8000', 't-dollar': '#6f8000',
-      't-number': '#c05a00', 't-param': '#b3499c', 't-keyword': '#35789f',
-      't-type': '#9d7100', 't-func': '#29815f', 't-ident': '#475258',
-      't-qident': '#29815f', 't-punct': '#7a8478',
-      't-add': '#6f8000', 't-del': '#d0403d', 't-hunk': '#29815f', 't-filehdr': '#9d7100',
+      'chrome-bg': '#343f44', 'chrome-ink': '#d3c6aa', 'chrome-muted': '#9da9a0', 'chrome-border': '#475258',
+      't-comment': '#5b625a', 't-string': '#596700', 't-dollar': '#596700',
+      't-number': '#9c4900', 't-param': '#983e85', 't-keyword': '#2d6688',
+      't-type': '#7e5a00', 't-func': '#226c50', 't-ident': '#475258',
+      't-qident': '#226c50', 't-punct': '#5b625a',
+      't-add': '#596700', 't-del': '#b42e2c', 't-hunk': '#226c50', 't-filehdr': '#7e5a00',
     },
   },
   rosepine: {
@@ -1725,6 +1743,7 @@ const THEMES = {
       'code-bg': '#14121c', 'sel': 'rgba(196,167,231,0.25)',
       'tab-active-ink': '#e0def4', 'tab-idle-ink': '#6e6a86', 'tab-hover-ink': '#908caa',
       'gutter-ink': '#403d52', 'flash': 'rgba(196,167,231,0.14)',
+      'chrome-bg': '#1f1d2e', 'chrome-ink': '#e0def4', 'chrome-muted': '#6e6a86', 'chrome-border': '#26233a',
       't-comment': '#6e6a86', 't-string': '#97b487', 't-dollar': '#97b487',
       't-number': '#f6c177', 't-param': '#ebbcba', 't-keyword': '#c4a7e7',
       't-type': '#f6c177', 't-func': '#9ccfd8', 't-ident': '#e0def4',
@@ -1732,16 +1751,17 @@ const THEMES = {
       't-add': '#97b487', 't-del': '#eb6f92', 't-hunk': '#9ccfd8', 't-filehdr': '#f6c177',
     },
     light: {
-      'bg': '#faf4ed', 'panel': '#fffaf3', 'ink': '#575279', 'muted': '#9893a5',
+      'bg': '#faf4ed', 'panel': '#fdfaf6', 'ink': '#575279', 'muted': '#9893a5',
       'border': '#dfdad9', 'accent': '#907aa9', 'accent-ink': '#ffffff',
-      'code-bg': '#f2e9e1', 'sel': 'rgba(144,122,169,0.16)',
-      'tab-active-ink': '#907aa9', 'tab-idle-ink': '#9893a5', 'tab-hover-ink': '#575279',
+      'code-bg': '#e1ccba', 'sel': 'rgba(144,122,169,0.16)',
+      'tab-active-ink': '#e0def4', 'tab-idle-ink': '#6e6a86', 'tab-hover-ink': '#908caa',
       'gutter-ink': '#cecacd', 'flash': 'rgba(144,122,169,0.10)',
-      't-comment': '#797593', 't-string': '#567a46', 't-dollar': '#567a46',
-      't-number': '#a86c1c', 't-param': '#ab5551', 't-keyword': '#907aa9',
-      't-type': '#a86c1c', 't-func': '#3f717c', 't-ident': '#575279',
-      't-qident': '#286983', 't-punct': '#797593',
-      't-add': '#567a46', 't-del': '#b4637a', 't-hunk': '#3f717c', 't-filehdr': '#a86c1c',
+      'chrome-bg': '#1f1d2e', 'chrome-ink': '#e0def4', 'chrome-muted': '#6e6a86', 'chrome-border': '#26233a',
+      't-comment': '#59556d', 't-string': '#436037', 't-dollar': '#436037',
+      't-number': '#7b4f14', 't-param': '#894441', 't-keyword': '#644f7b',
+      't-type': '#7b4f14', 't-func': '#355e68', 't-ident': '#575279',
+      't-qident': '#245e76', 't-punct': '#59556d',
+      't-add': '#436037', 't-del': '#884256', 't-hunk': '#355e68', 't-filehdr': '#7b4f14',
     },
   },
   tokyonight: {
@@ -1752,6 +1772,7 @@ const THEMES = {
       'code-bg': '#16161e', 'sel': 'rgba(122,162,247,0.25)',
       'tab-active-ink': '#c0caf5', 'tab-idle-ink': '#a9b1d6', 'tab-hover-ink': '#7dcfff',
       'gutter-ink': '#3b4261', 'flash': 'rgba(122,162,247,0.14)',
+      'chrome-bg': '#292e42', 'chrome-ink': '#c0caf5', 'chrome-muted': '#a9b1d6', 'chrome-border': '#3b4261',
       't-comment': '#565f89', 't-string': '#9ece6a', 't-dollar': '#9ece6a',
       't-number': '#ff9e64', 't-param': '#bb9af7', 't-keyword': '#7aa2f7',
       't-type': '#e0af68', 't-func': '#2ac3de', 't-ident': '#c0caf5',
@@ -1759,16 +1780,17 @@ const THEMES = {
       't-add': '#9ece6a', 't-del': '#f7768e', 't-hunk': '#2ac3de', 't-filehdr': '#e0af68',
     },
     light: {
-      'bg': '#e1e2e7', 'panel': '#ffffff', 'ink': '#343b58', 'muted': '#565a6e',
+      'bg': '#e1e2e7', 'panel': '#f0f1f3', 'ink': '#343b58', 'muted': '#565a6e',
       'border': '#c4c8da', 'accent': '#2959aa', 'accent-ink': '#ffffff',
-      'code-bg': '#d5d6db', 'sel': 'rgba(41,89,170,0.16)',
-      'tab-active-ink': '#2959aa', 'tab-idle-ink': '#565a6e', 'tab-hover-ink': '#343b58',
+      'code-bg': '#b9bbc3', 'sel': 'rgba(41,89,170,0.16)',
+      'tab-active-ink': '#c0caf5', 'tab-idle-ink': '#a9b1d6', 'tab-hover-ink': '#7dcfff',
       'gutter-ink': '#9699a3', 'flash': 'rgba(41,89,170,0.10)',
-      't-comment': '#6a7099', 't-string': '#385f0d', 't-dollar': '#385f0d',
-      't-number': '#965027', 't-param': '#7847bd', 't-keyword': '#2959aa',
-      't-type': '#8f5e15', 't-func': '#007197', 't-ident': '#343b58',
-      't-qident': '#1a806d', 't-punct': '#565a6e',
-      't-add': '#385f0d', 't-del': '#8c4351', 't-hunk': '#007197', 't-filehdr': '#8f5e15',
+      'chrome-bg': '#292e42', 'chrome-ink': '#c0caf5', 'chrome-muted': '#a9b1d6', 'chrome-border': '#3b4261',
+      't-comment': '#454965', 't-string': '#31530b', 't-dollar': '#31530b',
+      't-number': '#723d1e', 't-param': '#5d3594', 't-keyword': '#22498c',
+      't-type': '#67430f', 't-func': '#00516d', 't-ident': '#343b58',
+      't-qident': '#115448', 't-punct': '#474a5b',
+      't-add': '#31530b', 't-del': '#753843', 't-hunk': '#00516d', 't-filehdr': '#67430f',
     },
   },
   one: {
@@ -1779,6 +1801,7 @@ const THEMES = {
       'code-bg': '#21252b', 'sel': 'rgba(97,175,239,0.25)',
       'tab-active-ink': '#abb2bf', 'tab-idle-ink': '#5c6370', 'tab-hover-ink': '#c678dd',
       'gutter-ink': '#4b5263', 'flash': 'rgba(97,175,239,0.14)',
+      'chrome-bg': '#2c313c', 'chrome-ink': '#abb2bf', 'chrome-muted': '#5c6370', 'chrome-border': '#3e4451',
       't-comment': '#5c6370', 't-string': '#98c379', 't-dollar': '#98c379',
       't-number': '#d19a66', 't-param': '#d668b8', 't-keyword': '#c678dd',
       't-type': '#e5c07b', 't-func': '#61afef', 't-ident': '#abb2bf',
@@ -1786,16 +1809,17 @@ const THEMES = {
       't-add': '#98c379', 't-del': '#e06c75', 't-hunk': '#61afef', 't-filehdr': '#e5c07b',
     },
     light: {
-      'bg': '#fafafa', 'panel': '#ffffff', 'ink': '#383a42', 'muted': '#696c77',
+      'bg': '#f0f0f1', 'panel': '#f8f8f8', 'ink': '#383a42', 'muted': '#696c77',
       'border': '#e5e5e6', 'accent': '#4078f2', 'accent-ink': '#ffffff',
-      'code-bg': '#f0f0f1', 'sel': 'rgba(64,120,242,0.16)',
-      'tab-active-ink': '#4078f2', 'tab-idle-ink': '#696c77', 'tab-hover-ink': '#383a42',
+      'code-bg': '#afafb5', 'sel': 'rgba(64,120,242,0.16)',
+      'tab-active-ink': '#abb2bf', 'tab-idle-ink': '#5c6370', 'tab-hover-ink': '#c678dd',
       'gutter-ink': '#a0a1a7', 'flash': 'rgba(64,120,242,0.10)',
-      't-comment': '#696c77', 't-string': '#3f8a3e', 't-dollar': '#3f8a3e',
-      't-number': '#986801', 't-param': '#bf2e8f', 't-keyword': '#a626a4',
-      't-type': '#a06e01', 't-func': '#4078f2', 't-ident': '#383a42',
-      't-qident': '#0184bc', 't-punct': '#696c77',
-      't-add': '#3f8a3e', 't-del': '#e45649', 't-hunk': '#4078f2', 't-filehdr': '#a06e01',
+      'chrome-bg': '#2c313c', 'chrome-ink': '#abb2bf', 'chrome-muted': '#5c6370', 'chrome-border': '#3e4451',
+      't-comment': '#414249', 't-string': '#224b22', 't-dollar': '#224b22',
+      't-number': '#5a3d01', 't-param': '#771d59', 't-keyword': '#721a71',
+      't-type': '#593d01', 't-func': '#0b399f', 't-ident': '#383a42',
+      't-qident': '#014766', 't-punct': '#414249',
+      't-add': '#224b22', 't-del': '#811c13', 't-hunk': '#0b399f', 't-filehdr': '#593d01',
     },
   },
   github: {
@@ -1806,6 +1830,7 @@ const THEMES = {
       'code-bg': '#010409', 'sel': 'rgba(88,166,255,0.25)',
       'tab-active-ink': '#c9d1d9', 'tab-idle-ink': '#8b949e', 'tab-hover-ink': '#e6edf3',
       'gutter-ink': '#484f58', 'flash': 'rgba(88,166,255,0.14)',
+      'chrome-bg': '#161b22', 'chrome-ink': '#c9d1d9', 'chrome-muted': '#8b949e', 'chrome-border': '#30363d',
       't-comment': '#8b949e', 't-string': '#3fb950', 't-dollar': '#3fb950',
       't-number': '#db6d28', 't-param': '#db61a2', 't-keyword': '#bc8cff',
       't-type': '#d29922', 't-func': '#58a6ff', 't-ident': '#c9d1d9',
@@ -1813,16 +1838,17 @@ const THEMES = {
       't-add': '#3fb950', 't-del': '#f85149', 't-hunk': '#58a6ff', 't-filehdr': '#d29922',
     },
     light: {
-      'bg': '#ffffff', 'panel': '#f6f8fa', 'ink': '#1f2328', 'muted': '#656d76',
+      'bg': '#eaeef2', 'panel': '#f5f7f9', 'ink': '#1f2328', 'muted': '#656d76',
       'border': '#d0d7de', 'accent': '#0969da', 'accent-ink': '#ffffff',
-      'code-bg': '#eaeef2', 'sel': 'rgba(9,105,218,0.16)',
-      'tab-active-ink': '#0969da', 'tab-idle-ink': '#656d76', 'tab-hover-ink': '#1f2328',
+      'code-bg': '#9eb0c3', 'sel': 'rgba(9,105,218,0.16)',
+      'tab-active-ink': '#c9d1d9', 'tab-idle-ink': '#8b949e', 'tab-hover-ink': '#e6edf3',
       'gutter-ink': '#8c959f', 'flash': 'rgba(9,105,218,0.10)',
-      't-comment': '#656d76', 't-string': '#1a7f37', 't-dollar': '#1a7f37',
-      't-number': '#bc4c00', 't-param': '#bf3989', 't-keyword': '#8250df',
-      't-type': '#9a6700', 't-func': '#0969da', 't-ident': '#1f2328',
-      't-qident': '#1b7c83', 't-punct': '#656d76',
-      't-add': '#1a7f37', 't-del': '#cf222e', 't-hunk': '#0969da', 't-filehdr': '#9a6700',
+      'chrome-bg': '#161b22', 'chrome-ink': '#c9d1d9', 'chrome-muted': '#8b949e', 'chrome-border': '#30363d',
+      't-comment': '#3d4248', 't-string': '#0f4b21', 't-dollar': '#0f4b21',
+      't-number': '#702d00', 't-param': '#722252', 't-keyword': '#4e1ea7',
+      't-type': '#593c00', 't-func': '#053f84', 't-ident': '#1f2328',
+      't-qident': '#10484d', 't-punct': '#3d4248',
+      't-add': '#0f4b21', 't-del': '#81151d', 't-hunk': '#053f84', 't-filehdr': '#593c00',
     },
   },
   kanagawa: {
@@ -1833,6 +1859,7 @@ const THEMES = {
       'code-bg': '#16161d', 'sel': 'rgba(126,156,216,0.25)',
       'tab-active-ink': '#dcd7ba', 'tab-idle-ink': '#c8c093', 'tab-hover-ink': '#957fb8',
       'gutter-ink': '#54546d', 'flash': 'rgba(126,156,216,0.14)',
+      'chrome-bg': '#2a2a37', 'chrome-ink': '#dcd7ba', 'chrome-muted': '#c8c093', 'chrome-border': '#363646',
       't-comment': '#727169', 't-string': '#98bb6c', 't-dollar': '#98bb6c',
       't-number': '#ffa066', 't-param': '#d27e99', 't-keyword': '#957fb8',
       't-type': '#e6c384', 't-func': '#7e9cd8', 't-ident': '#dcd7ba',
@@ -1840,16 +1867,17 @@ const THEMES = {
       't-add': '#98bb6c', 't-del': '#c34043', 't-hunk': '#7e9cd8', 't-filehdr': '#e6c384',
     },
     light: {
-      'bg': '#f2ecbc', 'panel': '#ffffff', 'ink': '#545464', 'muted': '#8a8980',
+      'bg': '#f2ecbc', 'panel': '#f9f6de', 'ink': '#545464', 'muted': '#8a8980',
       'border': '#dcd5ac', 'accent': '#4d699b', 'accent-ink': '#ffffff',
-      'code-bg': '#e5ddb0', 'sel': 'rgba(77,105,155,0.16)',
-      'tab-active-ink': '#4d699b', 'tab-idle-ink': '#8a8980', 'tab-hover-ink': '#545464',
+      'code-bg': '#d9cd8b', 'sel': 'rgba(77,105,155,0.16)',
+      'tab-active-ink': '#dcd7ba', 'tab-idle-ink': '#c8c093', 'tab-hover-ink': '#957fb8',
       'gutter-ink': '#a6a58c', 'flash': 'rgba(77,105,155,0.10)',
-      't-comment': '#716e61', 't-string': '#5d7440', 't-dollar': '#5d7440',
-      't-number': '#a85800', 't-param': '#b35b79', 't-keyword': '#624c83',
-      't-type': '#8f6800', 't-func': '#4d699b', 't-ident': '#545464',
-      't-qident': '#3e7382', 't-punct': '#716e61',
-      't-add': '#5d7440', 't-del': '#c84053', 't-hunk': '#4d699b', 't-filehdr': '#8f6800',
+      'chrome-bg': '#2a2a37', 'chrome-ink': '#dcd7ba', 'chrome-muted': '#c8c093', 'chrome-border': '#363646',
+      't-comment': '#59564c', 't-string': '#495c33', 't-dollar': '#495c33',
+      't-number': '#854500', 't-param': '#873e57', 't-keyword': '#624c83',
+      't-type': '#6f5100', 't-func': '#3f5680', 't-ident': '#545464',
+      't-qident': '#315c68', 't-punct': '#59564c',
+      't-add': '#495c33', 't-del': '#9c2d3d', 't-hunk': '#3f5680', 't-filehdr': '#6f5100',
     },
   },
   dracula: {
@@ -1860,6 +1888,7 @@ const THEMES = {
       'code-bg': '#191a21', 'sel': 'rgba(189,147,249,0.25)',
       'tab-active-ink': '#f8f8f2', 'tab-idle-ink': '#6272a4', 'tab-hover-ink': '#ff79c6',
       'gutter-ink': '#4d5066', 'flash': 'rgba(189,147,249,0.14)',
+      'chrome-bg': '#21222c', 'chrome-ink': '#f8f8f2', 'chrome-muted': '#6272a4', 'chrome-border': '#44475a',
       't-comment': '#6272a4', 't-string': '#50fa7b', 't-dollar': '#50fa7b',
       't-number': '#ffb86c', 't-param': '#ff79c6', 't-keyword': '#bd93f9',
       't-type': '#f1fa8c', 't-func': '#8be9fd', 't-ident': '#f8f8f2',
@@ -1867,16 +1896,17 @@ const THEMES = {
       't-add': '#50fa7b', 't-del': '#ff5555', 't-hunk': '#8be9fd', 't-filehdr': '#f1fa8c',
     },
     light: {
-      'bg': '#f8f8f2', 'panel': '#ffffff', 'ink': '#282a36', 'muted': '#6272a4',
+      'bg': '#eeeee6', 'panel': '#f7f7f3', 'ink': '#282a36', 'muted': '#6272a4',
       'border': '#d6d5cc', 'accent': '#7c4dbd', 'accent-ink': '#ffffff',
-      'code-bg': '#eeeee6', 'sel': 'rgba(124,77,189,0.16)',
-      'tab-active-ink': '#7c4dbd', 'tab-idle-ink': '#6272a4', 'tab-hover-ink': '#282a36',
+      'code-bg': '#bdbd9e', 'sel': 'rgba(124,77,189,0.16)',
+      'tab-active-ink': '#f8f8f2', 'tab-idle-ink': '#6272a4', 'tab-hover-ink': '#ff79c6',
       'gutter-ink': '#a9a9a0', 'flash': 'rgba(124,77,189,0.10)',
-      't-comment': '#6272a4', 't-string': '#2b8a3e', 't-dollar': '#2b8a3e',
-      't-number': '#b5651d', 't-param': '#b8288f', 't-keyword': '#7c4dbd',
-      't-type': '#8a7f00', 't-func': '#0f7c99', 't-ident': '#282a36',
-      't-qident': '#0f7c99', 't-punct': '#6272a4',
-      't-add': '#2b8a3e', 't-del': '#c0392b', 't-hunk': '#0f7c99', 't-filehdr': '#8a7f00',
+      'chrome-bg': '#21222c', 'chrome-ink': '#f8f8f2', 'chrome-muted': '#6272a4', 'chrome-border': '#44475a',
+      't-comment': '#3f496c', 't-string': '#1b5526', 't-dollar': '#1b5526',
+      't-number': '#703e12', 't-param': '#861d69', 't-keyword': '#5c3692',
+      't-type': '#524c00', 't-func': '#0a5165', 't-ident': '#282a36',
+      't-qident': '#0a5165', 't-punct': '#3f496c',
+      't-add': '#1b5526', 't-del': '#88291f', 't-hunk': '#0a5165', 't-filehdr': '#524c00',
     },
   },
 };

@@ -254,7 +254,7 @@ t('theme library has 12 themes with distinct dark backgrounds', () => {
   const bgs = new Set(ids.map(id => T.THEMES[id].dark.bg));
   eq(bgs.size, 12);
 });
-t('new themes meet token contrast floors', () => {
+t('all themes meet contrast and chrome floors', () => {
   const lum = h => {
     const c = h.replace('#', '');
     const [r, g, b] = [0, 2, 4].map(i => parseInt(c.slice(i, i + 2), 16) / 255)
@@ -262,17 +262,35 @@ t('new themes meet token contrast floors', () => {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
   const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-  const NEW = ['nord', 'solarized', 'gruvbox', 'everforest', 'rosepine', 'tokyonight', 'one', 'github', 'kanagawa', 'dracula'];
+  const ids = Object.keys(T.THEMES);
   const TOKENS = T.VAR_SCHEMA.filter(k => k.startsWith('t-'));
-  for (const id of NEW) {
-    for (const [mode, floor] of [['light', 3], ['dark', 2.5]]) {
-      const th = T.THEMES[id][mode];
-      for (const tk of TOKENS) {
-        if (!th[tk].startsWith('#')) continue;
-        ok(ratio(th[tk], th['code-bg']) >= floor,
-           id + '.' + mode + '.' + tk + ' contrast ' + ratio(th[tk], th['code-bg']).toFixed(2) + ' < ' + floor);
+  for (const id of ids) {
+    const th = T.THEMES[id];
+    // every schema value must be a hex color or an rgba() — no silent third format
+    for (const mode of ['dark', 'light']) {
+      for (const k of T.VAR_SCHEMA) {
+        const v = th[mode][k];
+        ok(v.startsWith('#') || v.startsWith('rgba('), id + '.' + mode + '.' + k + ' is neither #hex nor rgba(): ' + v);
       }
     }
+    // token contrast floors: light >= 4.5 vs code-bg, dark >= 2.5 vs code-bg
+    for (const [mode, floor] of [['light', 4.5], ['dark', 2.5]]) {
+      const m = th[mode];
+      for (const tk of TOKENS) {
+        if (!m[tk].startsWith('#')) continue;
+        ok(ratio(m[tk], m['code-bg']) >= floor,
+           id + '.' + mode + '.' + tk + ' contrast ' + ratio(m[tk], m['code-bg']).toFixed(2) + ' < ' + floor);
+      }
+    }
+    // chrome-ink vs chrome-bg >= 4.5 in both modes
+    for (const mode of ['dark', 'light']) {
+      const m = th[mode];
+      ok(ratio(m['chrome-ink'], m['chrome-bg']) >= 4.5,
+         id + '.' + mode + ' chrome-ink/chrome-bg contrast ' + ratio(m['chrome-ink'], m['chrome-bg']).toFixed(2) + ' < 4.5');
+    }
+    // light bg must not be near-pure-white; light chrome-bg must be genuinely dark
+    ok(lum(th.light.bg) <= 0.93, id + '.light.bg luminance ' + lum(th.light.bg).toFixed(3) + ' > 0.93');
+    ok(lum(th.light['chrome-bg']) <= 0.15, id + '.light.chrome-bg luminance ' + lum(th.light['chrome-bg']).toFixed(3) + ' > 0.15');
   }
 });
 
