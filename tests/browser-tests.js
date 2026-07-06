@@ -266,6 +266,23 @@
     A.toggleEdit(); A.closeTab(a); A.closeTab(b);
   });
 
+  t('typing in editor with find open does not steal focus or caret', () => {
+    const id = A.addTab({ name: 'fs.sql', source: 'SELECT a;\nSELECT b;' });
+    A.toggleEdit();
+    A.openFindBar();
+    document.getElementById('find-input').value = 'select';
+    A.runFind();
+    const ta = document.querySelector('.editor-ta');
+    ta.focus();
+    ta.value = 'SELECT a;\nSELECT bb;';
+    ta.setSelectionRange(3, 3);
+    ta.dispatchEvent(new Event('input'));
+    ok(document.activeElement === ta, 'focus stays in textarea');
+    eq(ta.selectionStart, 3);
+    ok(document.getElementById('find-count').textContent.endsWith('/2'), 'count recomputed');
+    A.closeFindBar(); A.toggleEdit(); A.closeTab(id);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {

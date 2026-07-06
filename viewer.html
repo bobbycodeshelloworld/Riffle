@@ -1062,7 +1062,7 @@ function buildEditor(tab) {
     syncGutter();
     refreshDirtyMarkers();
     updateHeaderButtons();
-    refreshFindForActiveTab();
+    if (findbarEl && !findbarEl.hidden) recomputeFindMatches();
   });
   ta.addEventListener('scroll', () => { gutter.scrollTop = ta.scrollTop; });
   wrap.append(gutter, ta);
@@ -1301,10 +1301,18 @@ function gotoMatch() {
   }
 }
 
-function runFind() {
+function recomputeFindMatches() {
   const tab = activeTab();
   findState.query = findInputEl.value;
   findState.matches = tab ? findMatches(tab.source, findState.query) : [];
+  findState.cur = findState.matches.length
+    ? Math.min(Math.max(findState.cur, 0), findState.matches.length - 1)
+    : -1;
+  updateFindCount();
+}
+
+function runFind() {
+  recomputeFindMatches();
   findState.cur = findState.matches.length ? 0 : -1;
   updateFindCount();
   gotoMatch();
@@ -1377,7 +1385,11 @@ function initApp() {
       if (findDebounce) { clearTimeout(findDebounce); findDebounce = null; runFind(); }
       else { stepFind(e.shiftKey ? -1 : 1); }
     }
-    else if (e.key === 'Escape') { e.preventDefault(); closeFindBar(); }
+    else if (e.key === 'Escape') {
+      e.preventDefault();
+      if (findDebounce) { clearTimeout(findDebounce); findDebounce = null; }
+      closeFindBar();
+    }
   });
   document.getElementById('find-next').addEventListener('click', () => stepFind(1));
   document.getElementById('find-prev').addEventListener('click', () => stepFind(-1));
@@ -1448,7 +1460,8 @@ function initApp() {
     const items = decodeSeed(window.__SEED__);
     items.forEach(it => addTab(it));
     const expected = Array.isArray(window.__SEED__) ? window.__SEED__.length : 0;
-    if (items.length < expected) toast("Couldn't decode " + (expected - items.length) + " of " + expected + " file(s) from the launcher.");
+    if (!Array.isArray(window.__SEED__)) toast("Couldn't decode the file(s) passed by the launcher.");
+    else if (items.length < expected) toast("Couldn't decode " + (expected - items.length) + " of " + expected + " file(s) from the launcher.");
     if (items.length) setActive(state.tabs[0].id);
   }
 
