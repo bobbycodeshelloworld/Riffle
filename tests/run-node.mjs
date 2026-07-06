@@ -150,5 +150,10 @@ t('isDirty compares source to savedSource', () => {
   ok(T.isDirty({ source: 'b', savedSource: 'a' }));
 });
 
+/* ===== Task 6: save pipeline ===== */
+t('saveActionFor: handle → save', () => { eq(T.saveActionFor({ handle: {} }, { canPick: true }), 'save'); });
+t('saveActionFor: no handle + picker → saveAs', () => { eq(T.saveActionFor({ handle: null }, { canPick: true }), 'saveAs'); });
+t('saveActionFor: no capability → download', () => { eq(T.saveActionFor({ handle: null }, { canPick: false }), 'download'); });
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

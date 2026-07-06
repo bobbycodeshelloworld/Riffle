@@ -938,7 +938,7 @@ let spyTick = false;
    ════════════════════════════════════════════════════════════ */
 function addTab({ name, path, source, handle = null, lastModified = null }) {
   const id = state.nextId++;
-  state.tabs.push({ id, name, path: path || name, ext: extOf(name), source,
+  state.tabs.push({ id, name, path: path || name, ext: extOf(name), cls: classifyContent(source), source,
     savedSource: source, handle, lastModified, mode: 'view',
     rendered: null, lastOutline: [], _ta: null });
   state.activeId = id;
@@ -956,11 +956,18 @@ function toast(msg) {
 
 function updateHeaderButtons() {
   const tab = activeTab();
-  editBtn.hidden = !tab;
+  editBtn.hidden = !tab || tab.cls !== 'text';
   copyAllBtn.hidden = !tab || tab.mode === 'edit';
-  // saveBtn stays hidden until Task 6
-  if (tab) editBtn.textContent = tab.mode === 'edit' ? 'View' : 'Edit';
+  saveBtn.hidden = !tab || tab.mode !== 'edit';
   editNoteEl.hidden = true;
+  if (!tab) return;
+  editBtn.textContent = tab.mode === 'edit' ? 'View' : 'Edit';
+  if (tab.mode === 'edit') {
+    const action = saveActionFor(tab);
+    saveBtn.querySelector('span').textContent =
+      action === 'save' ? 'Save' : action === 'saveAs' ? 'Save As…' : 'Download copy';
+    editNoteEl.hidden = action !== 'download';
+  }
 }
 
 function renderOutlinePane(entries, title, tab) {
@@ -1045,6 +1052,8 @@ function buildEditor(tab) {
 }
 
 function toggleEdit() {
+  const tab0 = activeTab();
+  if (!tab0 || tab0.cls !== 'text') return;
   const tab = activeTab();
   if (!tab) return;
   tab.mode = tab.mode === 'edit' ? 'view' : 'edit';
@@ -1094,7 +1103,7 @@ function renderActive() {
   }
 
   // view mode
-  const cls = classifyContent(tab.source);
+  const cls = tab.cls;
   let result;
   if (cls === 'binary') {
     const el = document.createElement('div');
@@ -1137,6 +1146,94 @@ function readFile(file) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   CORE · saving
+   ════════════════════════════════════════════════════════════ */
+function saveActionFor(tab, caps) {
+  caps = caps || { canPick: typeof window.showSaveFilePicker === 'function' };
+  if (tab.handle) return 'save';
+  return caps.canPick ? 'saveAs' : 'download';
+}
+Object.assign(window.__TEST__, { saveActionFor });
+
+function downloadCopy(tab) {
+  const blob = new Blob([tab.source], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = tab.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+async function ensureWritePermission(handle) {
+  if (await handle.queryPermission({ mode: 'readwrite' }) === 'granted') return;
+  if (await handle.requestPermission({ mode: 'readwrite' }) !== 'granted') {
+    throw new Error('write permission denied');
+  }
+}
+
+async function saveActiveTab() {
+  const tab = activeTab();
+  if (!tab) return;
+  const action = saveActionFor(tab);
+  try {
+    if (action === 'save') {
+      await ensureWritePermission(tab.handle);
+      const before = await tab.handle.getFile();
+      if (tab.lastModified != null && before.lastModified !== tab.lastModified) {
+        const overwrite = confirm('"' + tab.name + '" changed on disk since it was opened.\n\n'
+          + 'OK — overwrite the disk version with your edits.\n'
+          + 'Cancel — leave the disk version alone (your edits stay in this tab, unsaved).');
+        if (!overwrite) return;
+      }
+      const w = await tab.handle.createWritable();
+      await w.write(tab.source);
+      await w.close();
+      const after = await tab.handle.getFile();
+      tab.lastModified = after.lastModified;
+      tab.savedSource = tab.source;
+      toast('Saved ' + tab.name);
+    } else if (action === 'saveAs') {
+      const handle = await window.showSaveFilePicker({ suggestedName: tab.name });
+      const w = await handle.createWritable();
+      await w.write(tab.source);
+      await w.close();
+      tab.handle = handle;
+      tab.name = handle.name || tab.name;
+      tab.ext = extOf(tab.name);
+      const f = await handle.getFile();
+      tab.lastModified = f.lastModified;
+      tab.savedSource = tab.source;
+      renderTabs();
+      toast('Saved ' + tab.name);
+    } else {
+      downloadCopy(tab);
+      // The original file is untouched, so the tab intentionally stays dirty.
+      toast('Downloaded a copy — the original file is unchanged.');
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return; // user cancelled the picker
+    alert('Save failed: ' + (err && err.message || err)
+      + '\n\nYour edits are still in this tab. Try again, or use Download copy.');
+  }
+  refreshDirtyMarkers();
+  updateHeaderButtons();
+}
+
+async function openViaPicker() {
+  if (typeof window.showOpenFilePicker === 'function') {
+    try {
+      const handles = await window.showOpenFilePicker({ multiple: true });
+      for (const h of handles) {
+        const f = await h.getFile();
+        addTab({ name: f.name, path: f.name, source: await f.text(), handle: h, lastModified: f.lastModified });
+      }
+    } catch (err) { if (!err || err.name !== 'AbortError') throw err; }
+    return;
+  }
+  pickerInput.click();
+}
+
+/* ════════════════════════════════════════════════════════════
    CORE · app bootstrap (all DOM access lives in initApp)
    ════════════════════════════════════════════════════════════ */
 let tabsEl, contentHost, outlineEl, metaEl, dropHint, copyAllBtn, editBtn, saveBtn,
@@ -1161,22 +1258,43 @@ function initApp() {
   findInputEl = document.getElementById('find-input');
   findCountEl = document.getElementById('find-count');
 
-  // ---- open paths (handle-aware upgrades land in Task 6) ----
-  openBtn.addEventListener('click', () => pickerInput.click());
+  // ---- open paths ----
+  openBtn.addEventListener('click', openViaPicker);
   pickerInput.addEventListener('change', e => { Array.from(e.target.files).forEach(readFile); e.target.value = ''; });
   copyAllBtn.addEventListener('click', copyActiveSource);
   editBtn.addEventListener('click', toggleEdit);
+  saveBtn.addEventListener('click', saveActiveTab);
 
   ['dragenter', 'dragover'].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); document.body.classList.add('dragging'); }));
   ['dragleave', 'drop'].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); document.body.classList.remove('dragging'); }));
-  document.addEventListener('drop', e => { e.preventDefault(); Array.from(e.dataTransfer.files).forEach(readFile); });
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    const items = e.dataTransfer.items ? Array.from(e.dataTransfer.items) : [];
+    if (items.length && typeof items[0].getAsFileSystemHandle === 'function') {
+      const pending = items.filter(i => i.kind === 'file').map(i => i.getAsFileSystemHandle());
+      (async () => {
+        for (const p of pending) {
+          try {
+            const h = await p;
+            if (!h || h.kind !== 'file') continue;
+            const f = await h.getFile();
+            addTab({ name: f.name, path: f.name, source: await f.text(), handle: h, lastModified: f.lastModified });
+          } catch (err) { /* one bad item shouldn't kill the batch */ }
+        }
+      })();
+      return;
+    }
+    Array.from(e.dataTransfer.files).forEach(readFile);
+  });
 
   // ---- keyboard (⌘-chords added in Tasks 5–7) ----
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
       const k = e.key.toLowerCase();
       if (k === 'e') { e.preventDefault(); toggleEdit(); return; }
-      // 's' (save) added in Task 6, 'f' (find) in Task 7, 'o' (open) in Task 6
+      if (k === 's') { e.preventDefault(); saveActiveTab(); return; }
+      if (k === 'o') { e.preventDefault(); openViaPicker(); return; }
+      // 'f' (find) added in Task 7
     }
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
@@ -1217,6 +1335,7 @@ function initApp() {
 
   window.__TEST__.app = { state, activeTab, addTab, closeTab, setActive, prevTab, nextTab, renderActive };
   Object.assign(window.__TEST__.app, { toggleEdit, closeTabWithGuard, isDirty });
+  Object.assign(window.__TEST__.app, { saveActiveTab, openViaPicker, updateHeaderButtons });
 
   // Test mode: viewer.html?test=1 pulls in the browser suite (classic script;
   // iframes/ES modules don't work over file://).

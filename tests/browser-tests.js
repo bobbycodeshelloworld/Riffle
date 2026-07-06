@@ -123,6 +123,26 @@
     ok(!A.state.tabs.some(t2 => t2.id === id), 'tab closed after confirm true');
   });
 
+  t('save button label reflects capability', () => {
+    const id = A.addTab({ name: 's.md', source: '# s' });
+    A.toggleEdit();
+    const label = document.querySelector('#saveBtn span').textContent;
+    const canPick = typeof window.showSaveFilePicker === 'function';
+    eq(label, canPick ? 'Save As…' : 'Download copy');
+    const note = document.getElementById('edit-note');
+    eq(note.hidden, canPick); // note shows exactly when download is the only option
+    A.toggleEdit();
+    A.closeTab(id);
+  });
+
+  t('binary tabs cannot enter edit mode', () => {
+    const id = A.addTab({ name: 'blob.bin', source: 'ab\u0000cd' });
+    ok(document.getElementById('editToggle').hidden, 'Edit button hidden');
+    A.toggleEdit();
+    ok(!document.querySelector('.editor-ta'), 'toggleEdit no-ops');
+    A.closeTab(id);
+  });
+
   window.confirm = realConfirm;
 
   const failCount = results.filter(r => r.err).length;
