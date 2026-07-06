@@ -52,6 +52,17 @@
     A.closeTab(id);
   });
 
+  t('md tab renders prose with heading ids and outline anchors', () => {
+    const id = A.addTab({ name: 'doc.md', source: '# Title\n\n## Alpha\ntext\n\n## Beta\n\n```sql\nSELECT 1;\n```\n\n- [ ] task' });
+    ok(document.querySelector('.prose h2#alpha'), 'heading id assigned');
+    const links = [...document.querySelectorAll('#outline .o-item a')];
+    ok(links.some(a => a.getAttribute('href') === '#beta'), 'outline anchors to #beta');
+    ok(document.querySelector('.prose pre .t-keyword'), 'sql fence tokenized');
+    const cb = document.querySelector('.prose li input[type=checkbox]');
+    ok(cb && cb.disabled, 'task checkbox stays disabled in v1');
+    A.closeTab(id);
+  });
+
   window.confirm = realConfirm;
 
   const failCount = results.filter(r => r.err).length;

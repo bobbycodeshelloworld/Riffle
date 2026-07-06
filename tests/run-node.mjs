@@ -99,5 +99,34 @@ t('buildSQLOutline emits banner sections', () => {
   eq(kinds, ['section', 'stmt']);
 });
 
+/* ===== Task 4: markdown renderer ===== */
+t('marked is vendored and parses', () => {
+  ok(typeof sandbox.marked === 'object' || typeof sandbox.marked === 'function', 'marked global exists');
+  ok(sandbox.marked.parse('# Hi').includes('<h1'), 'marked.parse works');
+});
+t('preprocessMarkdown escapes generics outside code', () => {
+  ok(T.preprocessMarkdown('a Record<string, unknown> b').includes('&lt;string, unknown&gt;'));
+});
+t('preprocessMarkdown leaves fenced code untouched', () => {
+  const md = '```ts\nconst x: Array<number> = [];\n```';
+  eq(T.preprocessMarkdown(md), md);
+});
+t('preprocessMarkdown leaves inline code untouched', () => {
+  ok(T.preprocessMarkdown('use `Set<T>` here').includes('`Set<T>`'));
+});
+t('slugify', () => {
+  eq(T.slugify('Hello,  World!'), 'hello-world');
+  eq(T.slugify('   '), 'section');
+});
+t('maskFences blanks fenced lines', () => {
+  eq(T.maskFences(['a', '```', '# not a heading', '```', 'b']), ['a', '', '', '', 'b']);
+});
+t('headingLineFor finds next ATX heading of level', () => {
+  const lines = ['intro', '## One', 'text', '## Two'];
+  eq(T.headingLineFor(lines, 2, 0), 2);
+  eq(T.headingLineFor(lines, 2, 2), 4);
+  eq(T.headingLineFor(lines, 3, 0), null);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
