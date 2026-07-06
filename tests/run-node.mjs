@@ -49,5 +49,20 @@ t('truncate collapses whitespace and ellipsizes', () => {
   ok(T.truncate('x'.repeat(60), 10).endsWith('…'));
 });
 
+/* ===== Task 2: core ===== */
+t('decodeSeed decodes base64 items', () => {
+  const seed = [{ name: 'a.sql', path: '/x/a.sql', b64: btoa('select 1;') }];
+  eq(T.decodeSeed(seed), [{ name: 'a.sql', path: '/x/a.sql', source: 'select 1;' }]);
+});
+t('decodeSeed skips malformed entries', () => {
+  eq(T.decodeSeed([{ nope: true }, null, { name: 'b.md', b64: btoa('# hi') }]),
+     [{ name: 'b.md', path: 'b.md', source: '# hi' }]);
+  eq(T.decodeSeed('not an array'), []);
+});
+t('rendererFor falls back to plaintext for unknown ext', () => {
+  ok(typeof T.rendererFor('xyz').render === 'function');
+  ok(T.rendererFor('xyz') === T.rendererFor(''));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

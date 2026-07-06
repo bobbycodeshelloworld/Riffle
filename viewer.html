@@ -370,6 +370,235 @@ function truncate(s, n) { s = s.replace(/\s+/g, ' ').trim(); return s.length > n
 window.__TEST__ = { extOf, classifyContent, escapeHTML, formatBytes, b64ToString, lineStartIndex, truncate };
 
 /* ════════════════════════════════════════════════════════════
+   CORE · state + renderer registry
+   ════════════════════════════════════════════════════════════ */
+const state = { tabs: [], activeId: null, nextId: 1 };
+function activeTab() { return state.tabs.find(t => t.id === state.activeId) || null; }
+
+const RENDERERS = {}; // filled by the sql (Task 3) and md (Task 4) sections
+
+const plaintextRenderer = {
+  render(source) {
+    const lines = source.split('\n').map(l => (l === '' ? '' : escapeHTML(l)));
+    return { bodyEl: buildCodeScroll(lines), outline: [], outlineTitle: null };
+  }
+};
+function rendererFor(ext) { return RENDERERS[ext] || plaintextRenderer; }
+
+function decodeSeed(seed) {
+  if (!Array.isArray(seed)) return [];
+  const out = [];
+  for (const s of seed) {
+    if (!s || typeof s.b64 !== 'string') continue;
+    let source;
+    try { source = b64ToString(s.b64); } catch (e) { continue; }
+    out.push({ name: String(s.name || 'untitled'), path: String(s.path || s.name || 'untitled'), source });
+  }
+  return out;
+}
+
+Object.assign(window.__TEST__, { decodeSeed, rendererFor, plaintextRenderer });
+
+/* ════════════════════════════════════════════════════════════
+   CORE · rendering primitives (ported from sql-viewer.html)
+   ════════════════════════════════════════════════════════════ */
+let outlineLinks = [];   // { a, line } for scrollspy
+
+function buildCodeScroll(lineHTML) {
+  const scroll = document.createElement('div');
+  scroll.className = 'code-scroll';
+  const gw = Math.max(2.6, String(lineHTML.length).length + 1.2) + 'em';
+  const frag = document.createDocumentFragment();
+  lineHTML.forEach((html, idx) => {
+    const n = idx + 1;
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.id = 'line-' + n;
+    row.innerHTML = '<span class="ln" style="min-width:' + gw + '">' + n + '</span><span class="lc">' + (html || '') + '</span>';
+    frag.appendChild(row);
+  });
+  scroll.appendChild(frag);
+  return scroll;
+}
+
+function flashLine(n) {
+  const row = document.getElementById('line-' + n);
+  if (!row) return;
+  row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  row.classList.add('flash');
+  setTimeout(() => row.classList.remove('flash'), 900);
+}
+
+function copyText(text, btn, doneLabel) {
+  const labelEl = btn.querySelector('span') || btn;   // keep an icon sibling intact
+  const old = labelEl.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    labelEl.textContent = doneLabel; btn.classList.add('copied');
+    setTimeout(() => { labelEl.textContent = old; btn.classList.remove('copied'); }, 1100);
+  }).catch(() => { labelEl.textContent = 'Failed'; setTimeout(() => { labelEl.textContent = old; }, 1100); });
+}
+
+/* ════════════════════════════════════════════════════════════
+   CORE · tabs (ported from sql-viewer.html)
+   ════════════════════════════════════════════════════════════ */
+function renderTabs() {
+  tabsEl.innerHTML = '';
+  state.tabs.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (t.id === state.activeId ? ' active' : '');
+    btn.title = t.path || t.name;
+    btn.dataset.id = String(t.id);
+    btn.addEventListener('click', () => setActive(t.id));
+    const name = document.createElement('span');
+    name.className = 'tab-name'; name.textContent = t.name;
+    btn.appendChild(name);
+    const close = document.createElement('span');
+    close.className = 'tab-close'; close.textContent = '×'; close.title = 'Close tab';
+    close.addEventListener('click', e => { e.stopPropagation(); closeTab(t.id); });
+    btn.appendChild(close);
+    tabsEl.appendChild(btn);
+  });
+}
+
+function setActive(id) { if (state.activeId === id) return; state.activeId = id; renderTabs(); renderActive(); }
+function closeTab(id) {
+  const idx = state.tabs.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  state.tabs.splice(idx, 1);
+  if (state.activeId === id) { const next = state.tabs[idx] || state.tabs[idx - 1]; state.activeId = next ? next.id : null; }
+  renderTabs(); renderActive();
+}
+function prevTab() { if (state.tabs.length < 2) return; const i = state.tabs.findIndex(t => t.id === state.activeId); setActive(state.tabs[(i - 1 + state.tabs.length) % state.tabs.length].id); }
+function nextTab() { if (state.tabs.length < 2) return; const i = state.tabs.findIndex(t => t.id === state.activeId); setActive(state.tabs[(i + 1) % state.tabs.length].id); }
+
+/* ---------- scrollspy: highlight nearest outline entry above viewport ---------- */
+let spyTick = false;
+// window.addEventListener('scroll', …) registration lives in initApp (wiring rule).
+
+/* ════════════════════════════════════════════════════════════
+   CORE · tab lifecycle, outline pane, active render, file open
+   ════════════════════════════════════════════════════════════ */
+function addTab({ name, path, source, handle = null, lastModified = null }) {
+  const id = state.nextId++;
+  state.tabs.push({ id, name, path: path || name, ext: extOf(name), source,
+    savedSource: source, handle, lastModified, mode: 'view',
+    rendered: null, lastOutline: [], _ta: null });
+  state.activeId = id;
+  renderTabs(); renderActive();
+  return id;
+}
+
+function copyActiveSource() { const t = activeTab(); if (t) copyText(t.source, copyAllBtn, 'Copied'); }
+
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.hidden = false;
+  setTimeout(() => { toastEl.hidden = true; }, 4000);
+}
+
+function updateHeaderButtons() {
+  const tab = activeTab();
+  copyAllBtn.hidden = !tab;
+  // editToggle/saveBtn stay hidden until Tasks 5–6
+}
+
+function renderOutlinePane(entries, title, tab) {
+  outlineEl.innerHTML = '';
+  outlineLinks = [];
+  if (!entries.length) return;
+  const t = document.createElement('div');
+  t.className = 'o-title';
+  t.textContent = title || 'Outline';
+  outlineEl.appendChild(t);
+  const ul = document.createElement('ul');
+  entries.forEach(e => {
+    const li = document.createElement('li');
+    li.className = 'o-item' + (e.kind === 'section' ? ' section' : '') + (e.level ? ' o-l' + e.level : '');
+    const a = document.createElement('a');
+    a.href = e.anchor ? '#' + e.anchor : '#line-' + e.line;
+    a.textContent = e.label;
+    a.title = e.label + (e.line ? '  ·  line ' + e.line : '');
+    a.addEventListener('click', ev => { ev.preventDefault(); jumpTo(e, tab); });
+    li.appendChild(a);
+    if (e.line) outlineLinks.push({ a, line: e.line });
+    if (e.text) { // sql statements: hover-copy chip
+      const cp = document.createElement('span');
+      cp.className = 'o-copy'; cp.textContent = 'copy'; cp.title = 'Copy this statement';
+      cp.addEventListener('click', ev => { ev.stopPropagation(); copyText(e.text.endsWith(';') ? e.text : e.text + ';', cp, 'ok'); });
+      li.appendChild(cp);
+    }
+    ul.appendChild(li);
+  });
+  outlineEl.appendChild(ul);
+}
+
+function jumpTo(entry, tab) {
+  // edit-mode branch added in Task 5
+  if (entry.anchor) {
+    const el = document.getElementById(entry.anchor);
+    if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+  }
+  if (entry.line) flashLine(entry.line);
+}
+
+function renderActive() {
+  const tab = activeTab();
+  if (!tab) {
+    contentHost.innerHTML = ''; outlineEl.innerHTML = ''; outlineLinks = [];
+    metaEl.hidden = true; noticeEl.hidden = true; editNoteEl.hidden = true;
+    dropHint.style.display = ''; tabsEl.hidden = true;
+    document.title = 'MD+SQL Viewer';
+    updateHeaderButtons();
+    return;
+  }
+  dropHint.style.display = 'none';
+  tabsEl.hidden = false;
+  noticeEl.hidden = true;
+
+  // view mode (edit mode branch added in Task 5)
+  const cls = classifyContent(tab.source);
+  let result;
+  if (cls === 'binary') {
+    const el = document.createElement('div');
+    el.id = 'binary-note';
+    el.textContent = 'This looks like a binary file — nothing to display.';
+    el.style.cssText = 'padding:60px 20px;text-align:center;color:var(--muted)';
+    result = { bodyEl: el, outline: [], outlineTitle: null };
+  } else if (cls === 'huge') {
+    noticeEl.textContent = 'Rendered view disabled for large files (>5 MB) — showing plain text.';
+    noticeEl.hidden = false;
+    result = plaintextRenderer.render(tab.source);
+  } else {
+    if (!tab.rendered || tab.rendered.source !== tab.source) {
+      const r = rendererFor(tab.ext).render(tab.source);
+      tab.rendered = { source: tab.source, bodyEl: r.bodyEl, outline: r.outline, outlineTitle: r.outlineTitle };
+    }
+    result = tab.rendered;
+  }
+  tab.lastOutline = result.outline;
+  contentHost.replaceChildren(result.bodyEl);
+  renderOutlinePane(result.outline, result.outlineTitle, tab);
+
+  const lineCount = tab.source.split('\n').length;
+  const bytes = new Blob([tab.source]).size;
+  metaEl.innerHTML = '<span><b>' + escapeHTML(tab.name) + '</b></span>' +
+    '<span>' + lineCount.toLocaleString() + ' lines</span>' +
+    '<span>' + formatBytes(bytes) + '</span>';
+  metaEl.hidden = false;
+  document.title = tab.name + ' — MD+SQL Viewer';
+  updateHeaderButtons();
+  window.scrollTo(0, 0);
+}
+
+function readFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => addTab({ name: file.name, path: file.name, source: e.target.result,
+    lastModified: file.lastModified || null });
+  reader.readAsText(file);
+}
+
+/* ════════════════════════════════════════════════════════════
    CORE · app bootstrap (all DOM access lives in initApp)
    ════════════════════════════════════════════════════════════ */
 let tabsEl, contentHost, outlineEl, metaEl, dropHint, copyAllBtn, editBtn, saveBtn,
@@ -393,6 +622,52 @@ function initApp() {
   findbarEl = document.getElementById('findbar');
   findInputEl = document.getElementById('find-input');
   findCountEl = document.getElementById('find-count');
+
+  // ---- open paths (handle-aware upgrades land in Task 6) ----
+  openBtn.addEventListener('click', () => pickerInput.click());
+  pickerInput.addEventListener('change', e => { Array.from(e.target.files).forEach(readFile); e.target.value = ''; });
+  copyAllBtn.addEventListener('click', copyActiveSource);
+
+  ['dragenter', 'dragover'].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); document.body.classList.add('dragging'); }));
+  ['dragleave', 'drop'].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); document.body.classList.remove('dragging'); }));
+  document.addEventListener('drop', e => { e.preventDefault(); Array.from(e.dataTransfer.files).forEach(readFile); });
+
+  // ---- keyboard (⌘-chords added in Tasks 5–7) ----
+  document.addEventListener('keydown', e => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === '[') { e.preventDefault(); prevTab(); }
+    else if (e.key === ']') { e.preventDefault(); nextTab(); }
+    else if (e.key === 'x' && state.activeId) { e.preventDefault(); closeTab(state.activeId); }
+    else if (e.key === 'c' && state.activeId) { e.preventDefault(); copyActiveSource(); }
+  });
+
+  // ---- scrollspy (ported registration moved here) ----
+  window.addEventListener('scroll', () => {
+    if (spyTick || !outlineLinks.length) return;
+    spyTick = true;
+    requestAnimationFrame(() => {
+      spyTick = false;
+      const mark = 140;
+      let active = null;
+      for (const { a, line } of outlineLinks) {
+        const row = document.getElementById('line-' + line);
+        if (row && row.getBoundingClientRect().top <= mark) active = a; else break;
+      }
+      outlineLinks.forEach(o => o.a.classList.toggle('active', o.a === active));
+    });
+  }, { passive: true });
+
+  // ---- seed from the macOS launcher ----
+  if (window.__SEED__ !== undefined) {
+    const items = decodeSeed(window.__SEED__);
+    items.forEach(it => addTab(it));
+    if (!items.length) toast("Couldn't decode the file passed by the launcher.");
+    else setActive(state.tabs[0].id);
+  }
+
+  window.__TEST__.app = { state, activeTab, addTab, closeTab, setActive, prevTab, nextTab, renderActive };
 
   // Test mode: viewer.html?test=1 pulls in the browser suite (classic script;
   // iframes/ES modules don't work over file://).
