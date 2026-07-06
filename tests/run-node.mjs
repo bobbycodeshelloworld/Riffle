@@ -247,6 +247,13 @@ t('every theme defines the full var schema in both modes', () => {
     }
   }
 });
+t('theme library has 12 themes with distinct dark backgrounds', () => {
+  const ids = Object.keys(T.THEMES);
+  eq(ids.length, 12);
+  for (const id of ['nord', 'solarized', 'gruvbox', 'everforest', 'rosepine', 'tokyonight', 'one', 'github', 'kanagawa', 'dracula']) ok(ids.includes(id), id + ' present');
+  const bgs = new Set(ids.map(id => T.THEMES[id].dark.bg));
+  eq(bgs.size, 12);
+});
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
