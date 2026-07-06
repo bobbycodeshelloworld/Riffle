@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MD+SQL Viewer</title>
+<style>
+:root {
+  /* Catppuccin Mocha — vibrant but cohesive dark */
+  --bg: #1e1e2e; --panel: #181825; --ink: #cdd6f4; --muted: #a6adc8;
+  --border: #313244; --accent: #cba6f7; --accent-ink: #1e1e2e;
+  --code-bg: #11111b; --sel: rgba(203,166,247,0.28);
+  --tab-active-ink: #f5e0dc; --tab-idle-ink: #a6adc8; --tab-hover-ink: #f5c2e7;
+  --gutter-ink: #585b70; --flash: rgba(203,166,247,0.16);
+  /* SQL token colors (dark) */
+  --t-comment: #7f849c; --t-string: #a6e3a1; --t-dollar: #a6e3a1;
+  --t-number: #fab387; --t-param: #f5c2e7; --t-keyword: #cba6f7;
+  --t-type: #f9e2af; --t-func: #89b4fa; --t-ident: #cdd6f4;
+  --t-qident: #94e2d5; --t-punct: #9399b2;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Catppuccin Latte — bright, warm light */
+    --bg: #eff1f5; --panel: #ffffff; --ink: #4c4f69; --muted: #6c6f85;
+    --border: #ccd0da; --accent: #8839ef; --accent-ink: #ffffff;
+    --code-bg: #e6e9ef; --sel: rgba(136,57,239,0.16);
+    --tab-active-ink: #8839ef; --tab-idle-ink: #6c6f85; --tab-hover-ink: #4c4f69;
+    --gutter-ink: #9ca0b0; --flash: rgba(136,57,239,0.12);
+    --t-comment: #8c8fa1; --t-string: #40a02b; --t-dollar: #40a02b;
+    --t-number: #fe640b; --t-param: #ea76cb; --t-keyword: #8839ef;
+    --t-type: #df8e1d; --t-func: #1e66f5; --t-ident: #4c4f69;
+    --t-qident: #179299; --t-punct: #6c6f85;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+::selection { background: var(--sel); }
+
+/* ============ HEADER ============ */
+header { position: sticky; top: 0; z-index: 20;
+  background: var(--panel); border-bottom: 1px solid var(--border); }
+.brand-row { display: flex; align-items: center; gap: 14px;
+  padding: 10px 20px; border-bottom: 1px solid var(--border); }
+.brand { font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
+  color: var(--muted); text-transform: uppercase; }
+.spacer { flex: 1; }
+.ghost-btn { font-size: 12px; padding: 6px 12px; border: 1px solid var(--border);
+  background: transparent; color: var(--ink); border-radius: 6px;
+  cursor: pointer; font-family: inherit;
+  transition: border-color 0.15s, color 0.15s; }
+.ghost-btn:hover { border-color: var(--accent); color: var(--accent); }
+.ghost-btn.copied { border-color: var(--accent); color: var(--accent); }
+.copy-btn { font-size: 12px; font-weight: 600; padding: 6px 14px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+  border-radius: 6px; cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: opacity 0.15s, transform 0.05s, background 0.15s, color 0.15s; }
+.copy-btn:hover { opacity: 0.92; }
+.copy-btn:active { transform: translateY(1px); }
+.copy-btn.copied { background: transparent; color: var(--accent); }
+.copy-btn svg { width: 13px; height: 13px; }
+input[type=file] { display: none; }
+.hint-kbd { font-size: 11px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+.hint-kbd kbd { padding: 1px 5px; border: 1px solid var(--border); border-radius: 3px;
+  background: var(--bg); font-size: 10px; }
+
+/* ============ TABS ============ */
+.tabs-row { display: flex; align-items: stretch; overflow-x: auto;
+  padding: 0 12px; min-height: 40px; scrollbar-width: thin; }
+.tabs-row::-webkit-scrollbar { height: 6px; }
+.tabs-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.tab { display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 12px 8px; margin: 0 2px -1px; border: none; background: transparent;
+  border-bottom: 2px solid transparent; color: var(--tab-idle-ink); cursor: pointer;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  white-space: nowrap; transition: color 0.12s, border-color 0.12s; max-width: 280px; }
+.tab:hover { color: var(--tab-hover-ink); border-bottom-color: var(--border); }
+.tab.active { color: var(--tab-active-ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-name { overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.tab-close { display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 3px; color: var(--muted);
+  font-size: 14px; line-height: 1; opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+.tab-close:hover { background: var(--border); color: var(--ink); }
+
+/* ============ LAYOUT ============ */
+.body-layout { display: grid; grid-template-columns: minmax(0,1fr) 260px;
+  max-width: 1400px; margin: 0 auto; gap: 32px; padding: 28px 24px 120px; }
+@media (max-width: 900px) {
+  .body-layout { grid-template-columns: minmax(0,1fr); }
+  #outline { display: none; }
+}
+main { min-width: 0; }
+
+/* ============ CODE ============ */
+.file-meta { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px;
+  color: var(--muted); margin: 0 0 10px 2px; display: flex; gap: 14px; flex-wrap: wrap; }
+.file-meta b { color: var(--ink); font-weight: 600; }
+.code-scroll { overflow-x: auto; background: var(--code-bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.8px; line-height: 1.55; }
+.code-scroll::-webkit-scrollbar { height: 9px; }
+.code-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.row { display: flex; align-items: stretch; min-width: max-content; }
+.row:first-child { padding-top: 8px; }
+.row:last-child { padding-bottom: 8px; }
+.row.flash .lc { background: var(--flash); }
+.ln { position: sticky; left: 0; z-index: 1; flex: 0 0 auto;
+  min-width: 3.4em; padding: 0 12px 0 14px; text-align: right;
+  color: var(--gutter-ink); background: var(--code-bg);
+  border-right: 1px solid var(--border); user-select: none;
+  -webkit-user-select: none; white-space: pre; }
+.lc { flex: 1 1 auto; padding: 0 16px 0 14px; white-space: pre; }
+.t-comment { color: var(--t-comment); font-style: italic; }
+.t-string  { color: var(--t-string); }
+.t-dollar  { color: var(--t-dollar); }
+.t-number  { color: var(--t-number); }
+.t-param   { color: var(--t-param); }
+.t-keyword { color: var(--t-keyword); font-weight: 600; }
+.t-type    { color: var(--t-type); }
+.t-func    { color: var(--t-func); }
+.t-ident   { color: var(--t-ident); }
+.t-qident  { color: var(--t-qident); }
+.t-punct   { color: var(--t-punct); }
+
+/* ============ OUTLINE ============ */
+#outline { position: sticky; top: 110px; align-self: start;
+  max-height: calc(100vh - 130px); overflow-y: auto;
+  font-size: 13px; line-height: 1.5;
+  border-left: 1px solid var(--border); padding-left: 18px; }
+#outline .o-title { font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+#outline ul { list-style: none; padding: 0; margin: 0; }
+.o-item { display: flex; align-items: baseline; gap: 6px; margin: 1px 0; }
+.o-item a { flex: 1; min-width: 0; color: var(--muted); text-decoration: none;
+  display: block; padding: 2px 0 2px 10px; margin-left: -12px;
+  border-left: 2px solid transparent; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  transition: color 0.12s, border-color 0.12s; }
+.o-item a:hover, .o-item a.active { color: var(--ink); border-left-color: var(--accent); }
+.o-item.section a { color: var(--accent); text-transform: uppercase;
+  letter-spacing: 0.5px; font-size: 10.5px; font-weight: 700;
+  margin-top: 12px; opacity: 0.85; }
+.o-copy { flex: 0 0 auto; cursor: pointer; color: var(--gutter-ink);
+  font-size: 10px; font-family: ui-monospace, Menlo, monospace;
+  padding: 2px 4px; border-radius: 3px; opacity: 0;
+  transition: opacity 0.12s, color 0.12s; }
+.o-item:hover .o-copy { opacity: 1; }
+.o-copy:hover { color: var(--accent); }
+.o-copy.copied { color: var(--accent); opacity: 1; }
+
+/* ============ DROP HINT ============ */
+#drop-hint { text-align: center; padding: 100px 20px; color: var(--muted);
+  border: 2px dashed var(--border); border-radius: 12px; margin-top: 20px; }
+#drop-hint strong { color: var(--ink); display: block; font-size: 17px; margin-bottom: 6px; }
+#drop-hint .sub { font-size: 13px; margin-top: 14px; }
+
+/* ============ DRAG OVERLAY ============ */
+body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
+  border: 3px dashed var(--accent); border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent); font-size: 24px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; pointer-events: none; }
+
+/* ============ PROSE ============ */
+.prose { font-size: 15.5px; line-height: 1.7; max-width: 820px; }
+.prose > *:first-child { margin-top: 0; }
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  font-weight: 650; line-height: 1.3; margin: 1.8em 0 0.6em;
+  scroll-margin-top: 120px; position: relative;
+}
+.prose h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; margin-top: 0.5em; }
+.prose h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.prose h3 { font-size: 1.22em; }
+.prose h4 { font-size: 1.05em; }
+.prose h5, .prose h6 { font-size: 0.95em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.prose .anchor {
+  position: absolute; left: -24px; top: 0.05em;
+  color: var(--muted); text-decoration: none; opacity: 0;
+  transition: opacity 0.15s; font-weight: 400;
+}
+.prose h1:hover .anchor, .prose h2:hover .anchor,
+.prose h3:hover .anchor, .prose h4:hover .anchor { opacity: 1; }
+.prose p { margin: 0.9em 0; }
+.prose a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+.prose a:hover { border-bottom-color: var(--accent); }
+.prose code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em; background: var(--code-bg); padding: 2px 6px;
+  border-radius: 4px; border: 1px solid var(--border);
+}
+.prose pre {
+  position: relative;
+  background: var(--code-bg); padding: 16px 18px; border-radius: 8px;
+  border: 1px solid var(--border); overflow-x: auto; line-height: 1.55;
+  margin: 1em 0;
+}
+.prose pre code { background: transparent; padding: 0; border: none; font-size: 0.87em; }
+.prose pre[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute; top: 6px; right: 10px;
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.7px;
+  color: var(--muted); font-family: ui-monospace, Menlo, monospace;
+  padding: 2px 6px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 3px; transition: opacity 0.15s;
+}
+.prose pre:hover[data-lang]::before { opacity: 0; }
+.prose pre .code-copy {
+  position: absolute; top: 4px; right: 6px;
+  padding: 4px 9px; font-size: 10px; font-family: ui-monospace, Menlo, monospace;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--muted); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 4px;
+  cursor: pointer; opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.prose pre:hover .code-copy { opacity: 1; }
+.prose pre .code-copy:hover { color: var(--ink); border-color: var(--accent); }
+.prose pre .code-copy.copied { color: var(--accent); border-color: var(--accent); opacity: 1; }
+.prose blockquote {
+  margin: 1.2em 0; padding: 0.5em 1.1em;
+  border-left: 3px solid var(--accent); color: var(--muted);
+  background: var(--code-bg); border-radius: 0 6px 6px 0;
+}
+.prose blockquote p { margin: 0.3em 0; }
+.prose table { border-collapse: collapse; margin: 1.2em 0; width: 100%; font-size: 0.92em; }
+.prose th, .prose td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; vertical-align: top; }
+.prose th { background: var(--code-bg); font-weight: 600; }
+.prose tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--code-bg) 40%, transparent); }
+.prose hr { border: 0; border-top: 1px solid var(--border); margin: 2.4em 0; }
+.prose img { max-width: 100%; border-radius: 6px; }
+.prose ul, .prose ol { padding-left: 1.6em; }
+.prose li { margin: 0.3em 0; }
+.prose li > input[type="checkbox"] { margin-right: 6px; transform: translateY(1px); }
+.prose ul:has(> li > input[type="checkbox"]) { list-style: none; padding-left: 0.2em; }
+
+/* ============ FIND BAR ============ */
+#findbar { display: flex; align-items: center; gap: 8px; padding: 6px 20px;
+  border-top: 1px solid var(--border); background: var(--panel); }
+#findbar[hidden] { display: none; }
+#find-input { flex: 0 1 340px; font: 12px ui-monospace, Menlo, monospace;
+  padding: 5px 9px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; outline: none; }
+#find-input:focus { border-color: var(--accent); }
+#find-count { font: 11px ui-monospace, Menlo, monospace; color: var(--muted); min-width: 64px; }
+.find-nav { padding: 4px 9px; }
+
+/* ============ EDITOR ============ */
+.editor-wrap { display: flex; background: var(--code-bg);
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  height: calc(100vh - 230px); min-height: 320px; }
+.editor-gutter { flex: 0 0 auto; min-width: 3.4em; padding: 8px 12px 8px 14px;
+  text-align: right; color: var(--gutter-ink); background: var(--code-bg);
+  border-right: 1px solid var(--border); overflow: hidden; user-select: none;
+  -webkit-user-select: none; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.8px; line-height: 1.55; white-space: pre; }
+.editor-ta { flex: 1 1 auto; padding: 8px 16px 8px 14px; background: transparent;
+  color: var(--ink); border: none; outline: none; resize: none;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.8px; line-height: 1.55; white-space: pre; overflow: auto; tab-size: 4; }
+
+/* ============ DIRTY DOT / NOTICES / TOAST ============ */
+.tab.dirty .tab-name::after { content: " •"; color: var(--accent); }
+#notice { margin: 0 0 12px; padding: 9px 14px; font-size: 12.5px;
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 6px; color: var(--muted); background: var(--panel); }
+#edit-note { margin: 10px 0 0; font-size: 11.5px; color: var(--muted);
+  font-family: ui-monospace, Menlo, monospace; }
+#toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  padding: 9px 16px; font-size: 12.5px; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--accent); border-radius: 8px; z-index: 2000; }
+
+/* ============ OUTLINE INDENT (markdown levels) ============ */
+.o-item.o-l3 a { padding-left: 22px; font-size: 11.5px; }
+.o-item.o-l4 a { padding-left: 34px; font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand-row">
+    <span class="brand">MD+SQL Viewer</span>
+    <span class="hint-kbd"><kbd>[</kbd> <kbd>]</kbd> switch · <kbd>x</kbd> close · <kbd>⌘E</kbd> edit · <kbd>⌘S</kbd> save · <kbd>⌘F</kbd> find</span>
+    <span class="spacer"></span>
+    <button class="copy-btn" id="copyAll" title="Copy the whole file to the clipboard (c)" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      <span>Copy file</span>
+    </button>
+    <button class="ghost-btn" id="editToggle" title="Toggle edit mode (⌘E)" hidden>Edit</button>
+    <button class="copy-btn" id="saveBtn" title="Save (⌘S)" hidden><span>Save</span></button>
+    <button class="ghost-btn" id="openBtn" title="Open files (⌘O)">Open file(s)</button>
+    <input type="file" id="picker" accept=".md,.markdown,.mdown,.mkd,.sql,.ddl,.pgsql,.psql,.txt" multiple>
+  </div>
+  <nav class="tabs-row" id="tabs" aria-label="Open files" hidden></nav>
+  <div id="findbar" hidden>
+    <input id="find-input" type="text" placeholder="Find in file…" spellcheck="false">
+    <span id="find-count"></span>
+    <button class="ghost-btn find-nav" id="find-prev" title="Previous match (Shift+Enter)">‹</button>
+    <button class="ghost-btn find-nav" id="find-next" title="Next match (Enter)">›</button>
+    <button class="ghost-btn find-nav" id="find-close" title="Close (Esc)">×</button>
+  </div>
+</header>
+
+<div class="body-layout">
+  <main id="main">
+    <div id="file-meta" class="file-meta" hidden></div>
+    <div id="notice" hidden></div>
+    <div id="content-host"></div>
+    <div id="edit-note" hidden>This browser can't write files in place; saving downloads a copy.</div>
+    <div id="drop-hint">
+      <strong>Drop .md or .sql files anywhere</strong>
+      <div class="sub">or click <em>Open file(s)</em> above · multiple files open as tabs</div>
+    </div>
+  </main>
+  <aside id="outline"></aside>
+</div>
+<div id="toast" hidden></div>
+
+<!--__VIEWER_SEED__-->
+
+<script>/*__VENDOR_MARKED__*/</script>
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════
+   CORE · pure utilities
+   ════════════════════════════════════════════════════════════ */
+function extOf(name) {
+  const m = /\.([A-Za-z0-9]+)$/.exec(name || '');
+  return m ? m[1].toLowerCase() : '';
+}
+
+const MAX_RENDER_CHARS = 5 * 1024 * 1024;
+function classifyContent(source) {
+  if (source.includes('\0')) return 'binary';
+  if (source.length > MAX_RENDER_CHARS) return 'huge';
+  return 'text';
+}
+
+function escapeHTML(s) { return s.replace(/[&<>]/g, c => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;')); }
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function b64ToString(b64) {
+  const bin = atob(b64);
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  try { return new TextDecoder('utf-8', { fatal: false }).decode(bytes); }
+  catch (e) { return bin; }
+}
+
+function lineStartIndex(s, line) {
+  let i = 0;
+  for (let l = 1; l < line; l++) {
+    const nl = s.indexOf('\n', i);
+    if (nl === -1) return s.length;
+    i = nl + 1;
+  }
+  return i;
+}
+
+function truncate(s, n) { s = s.replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; }
+
+window.__TEST__ = { extOf, classifyContent, escapeHTML, formatBytes, b64ToString, lineStartIndex, truncate };
+
+/* ════════════════════════════════════════════════════════════
+   CORE · app bootstrap (all DOM access lives in initApp)
+   ════════════════════════════════════════════════════════════ */
+let tabsEl, contentHost, outlineEl, metaEl, dropHint, copyAllBtn, editBtn, saveBtn,
+    openBtn, pickerInput, noticeEl, editNoteEl, toastEl,
+    findbarEl, findInputEl, findCountEl;
+
+function initApp() {
+  tabsEl = document.getElementById('tabs');
+  contentHost = document.getElementById('content-host');
+  outlineEl = document.getElementById('outline');
+  metaEl = document.getElementById('file-meta');
+  dropHint = document.getElementById('drop-hint');
+  copyAllBtn = document.getElementById('copyAll');
+  editBtn = document.getElementById('editToggle');
+  saveBtn = document.getElementById('saveBtn');
+  openBtn = document.getElementById('openBtn');
+  pickerInput = document.getElementById('picker');
+  noticeEl = document.getElementById('notice');
+  editNoteEl = document.getElementById('edit-note');
+  toastEl = document.getElementById('toast');
+  findbarEl = document.getElementById('findbar');
+  findInputEl = document.getElementById('find-input');
+  findCountEl = document.getElementById('find-count');
+
+  // Test mode: viewer.html?test=1 pulls in the browser suite (classic script;
+  // iframes/ES modules don't work over file://).
+  if (/[?&]test=1/.test(location.search)) {
+    const s = document.createElement('script');
+    s.src = 'tests/browser-tests.js';
+    document.body.appendChild(s);
+  }
+}
+
+if (typeof document !== 'undefined') initApp();
+</script>
+</body>
+</html>
