@@ -182,7 +182,10 @@ Power-edit sessions start from inside the app in Chromium.
   Save As… / Download. Edits are never silently dropped.
 - **Untrusted markdown (XSS)** → after marked parses, a scrub pass removes
   script-capable elements (script/iframe/object/embed/form/base/link/meta/style),
-  all `on*` attributes, `javascript:`/non-image `data:` URLs from href/src.
+  all `on*` attributes; href/src survive only on an allowlist (href:
+  https/http/mailto/#; src: https/http/data:image) — relative URLs are
+  stripped too, by design: they could never resolve correctly from a seeded
+  temp copy.
   The tag allowlist in sanitizeAngles filters names only; the scrub is the
   actual security boundary.
 

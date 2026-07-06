@@ -166,5 +166,10 @@ t('findMatches non-overlapping', () => {
   eq(T.findMatches('aaaa', 'aa').length, 2);
 });
 
+t('preprocessMarkdown leaves ~~~ fences untouched', () => {
+  const md = '~~~\nRecord<string, unknown>\n~~~';
+  eq(T.preprocessMarkdown(md), md);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -187,14 +187,18 @@
       async createWritable() { return { async write() {}, async close() {} }; } };
     const prevPicker = window.showSaveFilePicker;
     window.showSaveFilePicker = async () => fake;
-    const id = A.addTab({ name: 'x.md', source: 'SELECT 1;' });
-    A.toggleEdit();
-    await A.saveActiveTab();
-    window.showSaveFilePicker = prevPicker;
-    eq(A.activeTab().ext, 'sql');
-    A.toggleEdit();
-    ok(document.querySelector('.lc .t-keyword'), 'sql renderer used after ext change');
-    A.closeTab(id);
+    let id;
+    try {
+      id = A.addTab({ name: 'x.md', source: 'SELECT 1;' });
+      A.toggleEdit();
+      await A.saveActiveTab();
+      eq(A.activeTab().ext, 'sql');
+      A.toggleEdit();
+      ok(document.querySelector('.lc .t-keyword'), 'sql renderer used after ext change');
+      A.closeTab(id);
+    } finally {
+      window.showSaveFilePicker = prevPicker;
+    }
   });
 
   t('find bar counts and steps matches', () => {
@@ -247,11 +251,27 @@
     A.toggleEdit(); A.closeTab(b);
   });
 
+  t('dirty edit survives switch-away and back', () => {
+    const a = A.addTab({ name: 'sw1.sql', source: 'SELECT 1;' });
+    const b = A.addTab({ name: 'sw2.sql', source: 'SELECT 2;' });
+    A.setActive(a);
+    A.toggleEdit();
+    const ta = document.querySelector('.editor-ta');
+    ta.value = 'SELECT 111;';
+    ta.dispatchEvent(new Event('input'));
+    A.setActive(b);
+    A.setActive(a);
+    eq(document.querySelector('.editor-ta').value, 'SELECT 111;');
+    ok(document.querySelector('#tabs .tab.active').classList.contains('dirty'), 'dirty dot persists');
+    A.toggleEdit(); A.closeTab(a); A.closeTab(b);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {
       try { await fn(); results.push({ name, err: null }); }
       catch (e) { results.push({ name, err: e }); }
+      while (A.state.tabs.length) A.closeTab(A.state.tabs[0].id);
     }
     window.confirm = realConfirm;
 

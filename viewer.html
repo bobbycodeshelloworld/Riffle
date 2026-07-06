@@ -732,7 +732,7 @@ function sanitizeAngles(segment) {
 }
 function preprocessMarkdown(md) {
   // Split on fenced code blocks; even indexes are prose, odd are code fences.
-  const blocks = md.split(/(^```[\s\S]*?^```\s*$)/m);
+  const blocks = md.split(/(^```[\s\S]*?^```\s*$|^~~~[\s\S]*?^~~~\s*$)/m);
   return blocks.map((block, i) => {
     if (i % 2 === 1) return block; // fenced code — untouched
     // Insert a blank line before any log-style date-prefixed line when it
@@ -767,7 +767,7 @@ function isSafeUrl(value, kind) {
   return re ? re.test(String(value).trim()) : false;
 }
 function scrubActiveContent(root) {
-  root.querySelectorAll('script, iframe, object, embed, form, base, link, meta, style').forEach(el => el.remove());
+  root.querySelectorAll('script, iframe, object, embed, form, base, link, meta, style, svg, math').forEach(el => el.remove());
   root.querySelectorAll('*').forEach(el => {
     for (const attr of Array.from(el.attributes)) {
       const n = attr.name.toLowerCase();
@@ -967,10 +967,12 @@ function addTab({ name, path, source, handle = null, lastModified = null }) {
 
 function copyActiveSource() { const t = activeTab(); if (t) copyText(t.source, copyAllBtn, 'Copied'); }
 
+let toastTimer = null;
 function toast(msg) {
+  clearTimeout(toastTimer);
   toastEl.textContent = msg;
   toastEl.hidden = false;
-  setTimeout(() => { toastEl.hidden = true; }, 4000);
+  toastTimer = setTimeout(() => { toastEl.hidden = true; }, 4000);
 }
 
 function updateHeaderButtons() {
@@ -1060,12 +1062,12 @@ function buildEditor(tab) {
     syncGutter();
     refreshDirtyMarkers();
     updateHeaderButtons();
+    refreshFindForActiveTab();
   });
   ta.addEventListener('scroll', () => { gutter.scrollTop = ta.scrollTop; });
   wrap.append(gutter, ta);
-  syncGutter(); // populate immediately (don't rely solely on the microtask below —
-                // synchronous callers/tests read the gutter before it can flush)
-  queueMicrotask(syncGutter);
+  syncGutter(); // populate immediately (don't rely solely on a queued flush —
+                // synchronous callers/tests read the gutter before it could run)
   tab._ta = ta;
   return wrap;
 }
@@ -1159,6 +1161,7 @@ function readFile(file) {
   const reader = new FileReader();
   reader.onload = e => addTab({ name: file.name, path: file.name, source: e.target.result,
     lastModified: file.lastModified || null });
+  reader.onerror = () => toast('Could not read ' + file.name);
   reader.readAsText(file);
 }
 
@@ -1196,6 +1199,8 @@ async function saveActiveTab() {
   try {
     const tab = activeTab();
     if (!tab) return;
+    if (tab.cls !== 'text') return;
+    if (tab.mode !== 'edit' && !isDirty(tab)) return;
     const action = saveActionFor(tab);
     try {
       if (action === 'save') {
@@ -1255,7 +1260,10 @@ async function openViaPicker() {
           addTab({ name: f.name, path: f.name, source: await f.text(), handle: h, lastModified: f.lastModified });
         } catch (err) { /* one bad file shouldn't kill the batch */ }
       }
-    } catch (err) { if (!err || err.name !== 'AbortError') throw err; }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // user cancelled the picker
+      toast('Open failed: ' + (err && err.message || err));
+    }
     return;
   }
   pickerInput.click();
@@ -1361,10 +1369,14 @@ function initApp() {
   let findDebounce = null;
   findInputEl.addEventListener('input', () => {
     clearTimeout(findDebounce);
-    findDebounce = setTimeout(runFind, 120);
+    findDebounce = setTimeout(() => { findDebounce = null; runFind(); }, 120);
   });
   findInputEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (findDebounce) { clearTimeout(findDebounce); findDebounce = null; runFind(); }
+      else { stepFind(e.shiftKey ? -1 : 1); }
+    }
     else if (e.key === 'Escape') { e.preventDefault(); closeFindBar(); }
   });
   document.getElementById('find-next').addEventListener('click', () => stepFind(1));
@@ -1435,8 +1447,9 @@ function initApp() {
   if (window.__SEED__ !== undefined) {
     const items = decodeSeed(window.__SEED__);
     items.forEach(it => addTab(it));
-    if (!items.length) toast("Couldn't decode the file passed by the launcher.");
-    else setActive(state.tabs[0].id);
+    const expected = Array.isArray(window.__SEED__) ? window.__SEED__.length : 0;
+    if (items.length < expected) toast("Couldn't decode " + (expected - items.length) + " of " + expected + " file(s) from the launcher.");
+    if (items.length) setActive(state.tabs[0].id);
   }
 
   window.__TEST__.app = { state, activeTab, addTab, closeTab, setActive, prevTab, nextTab, renderActive };
