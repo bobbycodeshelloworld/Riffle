@@ -934,13 +934,14 @@ function renderTabs() {
   refreshDirtyMarkers();
 }
 
-function setActive(id) { if (state.activeId === id) return; state.activeId = id; renderTabs(); renderActive(); }
+function setActive(id) { if (state.activeId === id) return; state.activeId = id; renderTabs(); renderActive(); refreshFindForActiveTab(); }
 function closeTab(id) {
   const idx = state.tabs.findIndex(t => t.id === id);
   if (idx === -1) return;
   state.tabs.splice(idx, 1);
   if (state.activeId === id) { const next = state.tabs[idx] || state.tabs[idx - 1]; state.activeId = next ? next.id : null; }
   renderTabs(); renderActive();
+  refreshFindForActiveTab();
 }
 function prevTab() { if (state.tabs.length < 2) return; const i = state.tabs.findIndex(t => t.id === state.activeId); setActive(state.tabs[(i - 1 + state.tabs.length) % state.tabs.length].id); }
 function nextTab() { if (state.tabs.length < 2) return; const i = state.tabs.findIndex(t => t.id === state.activeId); setActive(state.tabs[(i + 1) % state.tabs.length].id); }
@@ -959,6 +960,7 @@ function addTab({ name, path, source, handle = null, lastModified = null }) {
     rendered: null, lastOutline: [], _ta: null });
   state.activeId = id;
   renderTabs(); renderActive();
+  refreshFindForActiveTab();
   return id;
 }
 
@@ -1316,6 +1318,10 @@ function closeFindBar() {
   findbarEl.hidden = true;
   findState.query = ''; findState.matches = []; findState.cur = -1;
   findCountEl.textContent = '';
+}
+
+function refreshFindForActiveTab() {
+  if (findbarEl && !findbarEl.hidden) runFind();
 }
 
 /* ════════════════════════════════════════════════════════════

@@ -224,6 +224,19 @@
     A.closeTab(id);
   });
 
+  t('find recomputes on tab switch', () => {
+    const a = A.addTab({ name: 'fa.sql', source: 'SELECT a;\nSELECT b;' });
+    const b = A.addTab({ name: 'fb.sql', source: 'nothing here\nSELECT one;' });
+    A.openFindBar();
+    document.getElementById('find-input').value = 'select';
+    A.runFind();
+    eq(document.getElementById('find-count').textContent, '1/1'); // active tab is b
+    A.setActive(a);
+    eq(document.getElementById('find-count').textContent, '1/2'); // recomputed for a
+    A.closeFindBar();
+    A.closeTab(a); A.closeTab(b);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {
