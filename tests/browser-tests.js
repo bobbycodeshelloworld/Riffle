@@ -339,14 +339,33 @@
     ok(before.length >= 0);
   });
 
+  t('plain-key shortcuts are inert while settings panel is open', () => {
+    const id = A.addTab({ name: 'pk.sql', source: 'SELECT 1;' });
+    A.openSettingsPanel();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
+    ok(A.state.tabs.some(t2 => t2.id === id), 'tab survived x with panel open');
+    ok(!document.getElementById('settings-panel').hidden, 'panel still open');
+    A.closeSettingsPanel();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
+    ok(!A.state.tabs.some(t2 => t2.id === id), 'x works again after close');
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
+    // Settings tests persist through the real saveSettings path; snapshot the
+    // user's stored settings so running the suite never changes them for real.
+    let settingsSnapshot;
+    try { settingsSnapshot = localStorage.getItem('riffle.settings'); } catch (e) { settingsSnapshot = undefined; }
     for (const [name, fn] of tests) {
       try { await fn(); results.push({ name, err: null }); }
       catch (e) { results.push({ name, err: e }); }
       while (A.state.tabs.length) A.closeTab(A.state.tabs[0].id);
     }
     window.confirm = realConfirm;
+    try {
+      if (settingsSnapshot === null) localStorage.removeItem('riffle.settings');
+      else if (settingsSnapshot !== undefined) localStorage.setItem('riffle.settings', settingsSnapshot);
+    } catch (e) { /* storage unavailable — nothing was persisted to restore */ }
 
     const failCount = results.filter(r => r.err).length;
     // Publish results in the tab title so AppleScript (read-only tab name) can

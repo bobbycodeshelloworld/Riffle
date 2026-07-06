@@ -2132,6 +2132,7 @@ function initApp() {
       if (k === 'f') { e.preventDefault(); openFindBar(); return; }
     }
     if (e.key === 'Escape' && settingsPanelEl && !settingsPanelEl.hidden) { e.preventDefault(); closeSettingsPanel(); return; }
+    if (settingsPanelEl && !settingsPanelEl.hidden) return; // plain-key shortcuts are inert while the panel is open
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
