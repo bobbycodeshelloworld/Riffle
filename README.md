@@ -82,7 +82,7 @@ above.
 5. Close a dirty tab with `x` — confirmation appears.
 6. `⌘F` "select" in sample.sql — count shows, Enter steps, lines flash.
 7. `./macos/build.sh`, set as default opener, double-click a `.sql` — tabs open seeded.
-8. Drop a `.json` or `.log` — opens as plain text.
+8. Drop a `.json` — colored keys + outline; drop a `.log` — opens as plain text.
 9. Drop a binary (e.g. a `.png`) — friendly refusal, app still works.
 10. `node tests/run-node.mjs` and `viewer.html?test=1` — all green.
 

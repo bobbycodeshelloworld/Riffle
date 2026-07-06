@@ -1,7 +1,7 @@
 #!/bin/bash
 # build.sh — compile "MD+SQL Viewer.app" from launcher.applescript, bundle
 # viewer.html + the seed helper inside it, and register it as a handler for
-# BOTH Markdown (.md/.markdown/.mdown/.mkd) and SQL (.sql) files.
+# Markdown, SQL, JSON, CSV/TSV, and diff/patch files.
 # Re-run any time you edit viewer.html.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -19,7 +19,7 @@ cp ../viewer.html "$APP/Contents/Resources/viewer.html"
 cp seed-and-open.sh "$APP/Contents/Resources/seed-and-open.sh"
 chmod +x "$APP/Contents/Resources/seed-and-open.sh"
 
-echo "› patching Info.plist (declare .md + .sql document types)"
+echo "› patching Info.plist (declare md/sql/json/csv/diff document types)"
 PLIST="$APP/Contents/Info.plist"
 "$PLIST_BUDDY" -c "Set :CFBundleName MD+SQL Viewer" "$PLIST" 2>/dev/null \
   || "$PLIST_BUDDY" -c "Add :CFBundleName string 'MD+SQL Viewer'" "$PLIST"
@@ -69,5 +69,5 @@ echo "› registering with LaunchServices"
 "$LSREGISTER" -f "$APP" || true
 
 echo "✓ built $(pwd)/$APP"
-echo "  Set it as your default opener: right-click a .md or .sql file → Get Info →"
+echo "  Set it as your default opener: right-click a .md, .sql, .json, .csv or .diff file → Get Info →"
 echo "  Open with → MD+SQL Viewer → Change All. (See README.md.)"
