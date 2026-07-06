@@ -209,6 +209,34 @@ Power-edit sessions start from inside the app in Chromium.
 - **Save-back paths:** manual, per-browser (automating native file dialogs isn't
   worth it at this scale).
 
+## v1.1 — Additional renderers (approved 2026-07-06)
+
+Three more filetypes, same plug-in contract, now `render(source) → { bodyEl,
+outline, outlineTitle, notice? }` — `notice` is a new optional string that CORE
+shows in the `#notice` banner (cached with the render result):
+
+- **JSON** (`.json`, `.geojson`) — lexical token highlighting reusing the
+  `--t-*` scheme (keys as `t-func`, strings/numbers/literals as themselves),
+  outline = top-level object keys with line numbers (capped at 500). Lexical
+  means invalid JSON still highlights; a `JSON.parse` check supplies a
+  "Not valid JSON: …" notice. The line-splitting logic is extracted from the
+  SQL renderer's `highlightToLines` into a shared `tokensToLines(toks)` helper
+  (`highlightToLines` stays as a thin SQL wrapper).
+- **CSV/TSV** (`.csv`, `.tsv`) — rendered as a real table reusing `.prose`
+  table styles inside an `overflow-x: auto` wrapper. DOM built via
+  createElement/textContent, so cell content is inert (no XSS surface).
+  RFC-4180-ish parsing: quoted fields, `""` escapes, delimiters and newlines
+  inside quotes; tab delimiter for `.tsv`. First row = header. Data rows
+  capped at 2,000 with a truncation notice. No outline.
+- **diff/patch** (`.diff`, `.patch`) — per-line classification (add / del /
+  hunk / file header / meta / context) colored via new theme vars `--t-add`,
+  `--t-del`, `--t-hunk`, `--t-filehdr` (both themes); outline = file headers
+  (sections) + hunks.
+
+The macOS launcher registers the six new extensions as three additional
+document types; the picker `accept` list and drop-hint copy grow to match.
+Editing/saving/find work identically (they're text tabs).
+
 ## Source material
 
 - `sql-viewer/sql-viewer.html` — tokenizer, outline, gutter, seed decoding, theme vars (port basis)
