@@ -202,5 +202,16 @@ t('parseCSV tab delimiter and trailing newline', () => {
   eq(T.parseCSV('a\tb\n1\t2\n', '\t'), [['a', 'b'], ['1', '2']]);
 });
 
+/* ===== v1.1: diff renderer ===== */
+t('classifyDiffLine covers all line kinds', () => {
+  eq(['--- a/x', '+++ b/x', '@@ -1,2 +1,2 @@', 'diff --git a/x b/x', '+new', '-old', ' ctx'].map(T.classifyDiffLine),
+     ['file', 'file', 'hunk', 'meta', 'add', 'del', 'ctx']);
+});
+t('diffOutline lists files as sections and hunks', () => {
+  const d = 'diff --git a/f.txt b/f.txt\n--- a/f.txt\n+++ b/f.txt\n@@ -1 +1 @@\n-a\n+b\n';
+  const entries = T.diffOutline(d.split('\n'));
+  eq(entries.map(e => [e.kind || 'hunk', e.line]), [['section', 3], ['hunk', 4]]);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

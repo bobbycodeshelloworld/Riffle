@@ -301,6 +301,14 @@
     A.closeTab(id);
   });
 
+  t('diff tab colors changes and outlines files', () => {
+    const id = A.addTab({ name: 'x.diff', source: 'diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1 +1 @@\n-old\n+new\n' });
+    ok(document.querySelector('.lc .d-add'), 'added line colored');
+    ok(document.querySelector('.lc .d-del'), 'deleted line colored');
+    ok([...document.querySelectorAll('#outline .o-item a')].some(a => a.textContent === 'f'), 'file in outline');
+    A.closeTab(id);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {

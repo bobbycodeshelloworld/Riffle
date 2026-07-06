@@ -16,6 +16,7 @@
   --t-number: #fab387; --t-param: #f5c2e7; --t-keyword: #cba6f7;
   --t-type: #f9e2af; --t-func: #89b4fa; --t-ident: #cdd6f4;
   --t-qident: #94e2d5; --t-punct: #9399b2;
+  --t-add: #a6e3a1; --t-del: #f38ba8; --t-hunk: #89b4fa; --t-filehdr: #f9e2af;
 }
 @media (prefers-color-scheme: light) {
   :root {
@@ -29,6 +30,7 @@
     --t-number: #fe640b; --t-param: #ea76cb; --t-keyword: #8839ef;
     --t-type: #df8e1d; --t-func: #1e66f5; --t-ident: #4c4f69;
     --t-qident: #179299; --t-punct: #6c6f85;
+    --t-add: #40a02b; --t-del: #d20f39; --t-hunk: #1e66f5; --t-filehdr: #df8e1d;
   }
 }
 * { box-sizing: border-box; }
@@ -124,6 +126,11 @@ main { min-width: 0; }
 .t-ident   { color: var(--t-ident); }
 .t-qident  { color: var(--t-qident); }
 .t-punct   { color: var(--t-punct); }
+.d-add  { color: var(--t-add); }
+.d-del  { color: var(--t-del); }
+.d-hunk { color: var(--t-hunk); font-weight: 600; }
+.d-file { color: var(--t-filehdr); font-weight: 600; }
+.d-meta { color: var(--t-comment); font-style: italic; }
 
 /* ============ OUTLINE ============ */
 #outline { position: sticky; top: 110px; align-self: start;
@@ -295,7 +302,7 @@ body.dragging::after { content: "Drop to open"; position: fixed; inset: 8px;
     <button class="ghost-btn" id="editToggle" title="Toggle edit mode (⌘E)" hidden>Edit</button>
     <button class="copy-btn" id="saveBtn" title="Save (⌘S)" hidden><span>Save</span></button>
     <button class="ghost-btn" id="openBtn" title="Open files (⌘O)">Open file(s)</button>
-    <input type="file" id="picker" accept=".md,.markdown,.mdown,.mkd,.sql,.ddl,.pgsql,.psql,.txt,.json,.geojson,.csv,.tsv" multiple>
+    <input type="file" id="picker" accept=".md,.markdown,.mdown,.mkd,.sql,.ddl,.pgsql,.psql,.txt,.json,.geojson,.csv,.tsv,.diff,.patch" multiple>
   </div>
   <nav class="tabs-row" id="tabs" aria-label="Open files" hidden></nav>
   <div id="findbar" hidden>
@@ -993,6 +1000,51 @@ RENDERERS.csv = makeCsvRenderer(',');
 RENDERERS.tsv = makeCsvRenderer('\t');
 
 Object.assign(window.__TEST__, { parseCSV });
+
+/* ════════════════════════════════════════════════════════════
+   RENDERERS · diff
+   ════════════════════════════════════════════════════════════ */
+function classifyDiffLine(l) {
+  if (l.startsWith('+++ ') || l.startsWith('--- ')) return 'file';
+  if (l.startsWith('@@')) return 'hunk';
+  if (l.startsWith('diff ') || l.startsWith('Index: ') || l.startsWith('index ')) return 'meta';
+  if (l.startsWith('+')) return 'add';
+  if (l.startsWith('-')) return 'del';
+  return 'ctx';
+}
+
+const DIFF_CLASS = { file: 'd-file', hunk: 'd-hunk', meta: 'd-meta', add: 'd-add', del: 'd-del' };
+
+function diffOutline(lines) {
+  const entries = [];
+  lines.forEach((l, idx) => {
+    if (l.startsWith('+++ ')) {
+      entries.push({ label: truncate(l.slice(4).replace(/^b\//, ''), 46), line: idx + 1, kind: 'section', level: 1 });
+    } else if (l.startsWith('@@')) {
+      entries.push({ label: truncate(l, 46), line: idx + 1, level: 2 });
+    }
+  });
+  return entries;
+}
+
+const diffRenderer = {
+  render(source) {
+    const lines = source.split('\n');
+    const html = lines.map(l => {
+      if (l === '') return '';
+      const cls = DIFF_CLASS[classifyDiffLine(l)];
+      const esc = escapeHTML(l);
+      return cls ? '<span class="' + cls + '">' + esc + '</span>' : esc;
+    });
+    const outline = diffOutline(lines);
+    const fileCount = outline.filter(e => e.kind === 'section').length;
+    return { bodyEl: buildCodeScroll(html), outline,
+      outlineTitle: fileCount ? 'Files (' + fileCount + ')' : (outline.length ? 'Hunks (' + outline.length + ')' : null) };
+  }
+};
+RENDERERS.diff = RENDERERS.patch = diffRenderer;
+
+Object.assign(window.__TEST__, { classifyDiffLine, diffOutline, diffRenderer });
 
 /* ════════════════════════════════════════════════════════════
    CORE · rendering primitives (ported from sql-viewer.html)
