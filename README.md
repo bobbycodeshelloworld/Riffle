@@ -14,6 +14,9 @@ files in, or click *Open file(s)*. That's the whole setup.
 - **SQL** — offline PostgreSQL-aware highlighting (dollar-quoting, `E''`
   strings, `$1` params), a clickable statement outline with hover-copy,
   and a pinned line-number gutter.
+- **JSON / CSV / diff** — colored JSON with a key outline (and a validity
+  notice), CSV/TSV as real tables, diffs with green/red change lines and a
+  file/hunk outline. Anything else opens as plain text.
 - **Editing** — press `⌘E` for raw source with line numbers. In Chromium
   browsers (Chrome, Edge, Arc, Brave) saving writes back to the original
   file; elsewhere the Save button honestly reads *Download copy*.
@@ -89,7 +92,7 @@ above.
   the top of `viewer.html` (token colors are the `--t-*` variables).
 - **SQL keywords/types:** the `KEYWORDS` / `TYPES` sets in the sql renderer section.
 - **New filetype:** add one renderer object exposing
-  `render(source) → { bodyEl, outline, outlineTitle }` and register its
+  `render(source) → { bodyEl, outline, outlineTitle, notice? }` and register its
   extensions in `RENDERERS`. The core never needs to change.
 
 ## License
