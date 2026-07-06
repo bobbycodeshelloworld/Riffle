@@ -254,6 +254,27 @@ t('theme library has 12 themes with distinct dark backgrounds', () => {
   const bgs = new Set(ids.map(id => T.THEMES[id].dark.bg));
   eq(bgs.size, 12);
 });
+t('new themes meet token contrast floors', () => {
+  const lum = h => {
+    const c = h.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map(i => parseInt(c.slice(i, i + 2), 16) / 255)
+      .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const NEW = ['nord', 'solarized', 'gruvbox', 'everforest', 'rosepine', 'tokyonight', 'one', 'github', 'kanagawa', 'dracula'];
+  const TOKENS = T.VAR_SCHEMA.filter(k => k.startsWith('t-'));
+  for (const id of NEW) {
+    for (const [mode, floor] of [['light', 3], ['dark', 2.5]]) {
+      const th = T.THEMES[id][mode];
+      for (const tk of TOKENS) {
+        if (!th[tk].startsWith('#')) continue;
+        ok(ratio(th[tk], th['code-bg']) >= floor,
+           id + '.' + mode + '.' + tk + ' contrast ' + ratio(th[tk], th['code-bg']).toFixed(2) + ' < ' + floor);
+      }
+    }
+  }
+});
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
