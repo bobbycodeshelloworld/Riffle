@@ -209,6 +209,35 @@ Power-edit sessions start from inside the app in Chromium.
 - **Save-back paths:** manual, per-browser (automating native file dialogs isn't
   worth it at this scale).
 
+## v1.2 — Themes & settings (approved 2026-07-06)
+
+A ⚙ settings panel in the header with five settings, persisted to
+`localStorage` key `riffle.settings` (single JSON; storage failures are
+silently tolerated — settings then apply per-session only, which also covers
+launcher-seeded temp copies that may not share a `file://` storage origin):
+
+- **Theme** — 12 built-in palettes, each defining BOTH modes over the full
+  29-variable schema (`bg, panel, ink, muted, border, accent, accent-ink,
+  code-bg, sel, tab-active-ink, tab-idle-ink, tab-hover-ink, gutter-ink,
+  flash, t-comment, t-string, t-dollar, t-number, t-param, t-keyword, t-type,
+  t-func, t-ident, t-qident, t-punct, t-add, t-del, t-hunk, t-filehdr`):
+  Catppuccin (default), Slate, Nord, Solarized, Gruvbox, Everforest,
+  Rosé Pine, Tokyo Night, One, GitHub, Kanagawa, Dracula. Themes live as a
+  JS table (`THEMES`); applying one sets inline custom properties on the
+  root element (inline beats the stylesheet defaults, which remain as the
+  no-JS fallback). A Node test enforces schema completeness for every
+  theme × mode.
+- **Appearance** — Auto (follows `prefers-color-scheme`, with a live
+  matchMedia listener) / Light / Dark (forced).
+- **Font size** — S/M/L via a `--font-scale` multiplier consumed by the
+  code/prose/editor font-size rules.
+- **Line wrap** — `body.wrap` class relaxes the code-row `min-width` and
+  sets `pre-wrap` on line content.
+- **Tab width** — 2/4/8 via `--tab-size-setting` consumed by code/editor.
+
+Out of scope: persisted tabs (unchanged v1 decision), custom theme editor
+(vars remain hand-editable), per-filetype settings. Size budget: ≤ ~15KB.
+
 ## v1.1 — Additional renderers (approved 2026-07-06)
 
 Three more filetypes, same plug-in contract, now `render(source) → { bodyEl,
