@@ -58,7 +58,7 @@ edit mode.
 **One file is the app.** `viewer.html` contains four layers:
 
 ```
-viewer.html  (~111KB, ~1,660 lines, clear section banners)
+viewer.html  (~138KB, ~2,100 lines, clear section banners)
 ├── CSS          — shell styles + :root theme vars (auto dark/light, --t-* token
 │                  variable scheme carried over from sql-viewer)
 ├── VENDORED     — marked v18.0.5 UMD bundle (lib/marked.umd.js, ~43KB) inlined
@@ -103,7 +103,7 @@ view toggle after edits).
 ## Repo layout
 
 ```
-riffle/                         (~200KB total; viewer.html is ~111KB of it)
+riffle/                         (~230KB total; viewer.html is ~138KB of it)
 ├── viewer.html                 ← the app
 ├── README.md                   — 30-second quickstart; per-OS setup below it
 ├── LICENSE                     — MIT (compatible with vendored marked)
@@ -236,7 +236,9 @@ launcher-seeded temp copies that may not share a `file://` storage origin):
 - **Tab width** — 2/4/8 via `--tab-size-setting` consumed by code/editor.
 
 Out of scope: persisted tabs (unchanged v1 decision), custom theme editor
-(vars remain hand-editable), per-filetype settings. Size budget: ≤ ~15KB.
+(vars remain hand-editable), per-filetype settings. Size cost: ~27KB actual
+(the 12-theme × 2-mode × 29-var table outgrew the ~15KB estimate; accepted —
+the whole file is still ~138KB).
 
 ## v1.1 — Additional renderers (approved 2026-07-06)
 

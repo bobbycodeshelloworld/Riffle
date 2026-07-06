@@ -26,7 +26,7 @@ click *Open file(s)*. That's the whole setup.
   browsers (Chrome, Edge, Arc, Brave) saving writes back to the original
   file; elsewhere the Save button honestly reads *Download copy*.
 - Tabs, drag-and-drop, `⌘F` find, auto dark/light, unknown text files open
-  as plain text. Everything lives in one ~111 KB `viewer.html`.
+  as plain text. Everything lives in one ~138 KB `viewer.html`.
 
 ## Editing & saving — browser support
 
