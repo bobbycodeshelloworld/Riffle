@@ -915,6 +915,7 @@ function renderTabs() {
     btn.appendChild(close);
     tabsEl.appendChild(btn);
   });
+  refreshDirtyMarkers();
 }
 
 function setActive(id) { if (state.activeId === id) return; state.activeId = id; renderTabs(); renderActive(); }
@@ -955,8 +956,11 @@ function toast(msg) {
 
 function updateHeaderButtons() {
   const tab = activeTab();
-  copyAllBtn.hidden = !tab;
-  // editToggle/saveBtn stay hidden until Tasks 5–6
+  editBtn.hidden = !tab;
+  copyAllBtn.hidden = !tab || tab.mode === 'edit';
+  // saveBtn stays hidden until Task 6
+  if (tab) editBtn.textContent = tab.mode === 'edit' ? 'View' : 'Edit';
+  editNoteEl.hidden = true;
 }
 
 function renderOutlinePane(entries, title, tab) {
@@ -990,12 +994,79 @@ function renderOutlinePane(entries, title, tab) {
 }
 
 function jumpTo(entry, tab) {
-  // edit-mode branch added in Task 5
+  if (tab && tab.mode === 'edit') { jumpTextareaToLine(tab, entry.line); return; }
   if (entry.anchor) {
     const el = document.getElementById(entry.anchor);
     if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
   }
   if (entry.line) flashLine(entry.line);
+}
+
+function isDirty(tab) { return tab.source !== tab.savedSource; }
+Object.assign(window.__TEST__, { isDirty });
+
+function refreshDirtyMarkers() {
+  document.querySelectorAll('#tabs .tab').forEach(btn => {
+    const t = state.tabs.find(x => String(x.id) === btn.dataset.id);
+    if (t) btn.classList.toggle('dirty', isDirty(t));
+  });
+}
+
+function buildEditor(tab) {
+  const wrap = document.createElement('div');
+  wrap.className = 'editor-wrap';
+  const gutter = document.createElement('div');
+  gutter.className = 'editor-gutter';
+  const ta = document.createElement('textarea');
+  ta.className = 'editor-ta';
+  ta.value = tab.source;
+  ta.spellcheck = false;
+  const syncGutter = () => {
+    const n = tab.source.split('\n').length;
+    if (gutter.childElementCount !== n) {
+      gutter.innerHTML = Array.from({ length: n }, (_, i) => '<div>' + (i + 1) + '</div>').join('');
+    }
+    gutter.scrollTop = ta.scrollTop;
+  };
+  ta.addEventListener('input', () => {
+    tab.source = ta.value;
+    tab.rendered = null;
+    syncGutter();
+    refreshDirtyMarkers();
+    updateHeaderButtons();
+  });
+  ta.addEventListener('scroll', () => { gutter.scrollTop = ta.scrollTop; });
+  wrap.append(gutter, ta);
+  syncGutter(); // populate immediately (don't rely solely on the microtask below —
+                // synchronous callers/tests read the gutter before it can flush)
+  queueMicrotask(syncGutter);
+  tab._ta = ta;
+  return wrap;
+}
+
+function toggleEdit() {
+  const tab = activeTab();
+  if (!tab) return;
+  tab.mode = tab.mode === 'edit' ? 'view' : 'edit';
+  renderActive();
+  if (tab.mode === 'edit' && tab._ta) tab._ta.focus();
+}
+
+function jumpTextareaToLine(tab, line) {
+  const ta = tab._ta;
+  if (!ta || !line) return;
+  const idx = lineStartIndex(tab.source, line);
+  ta.focus();
+  ta.setSelectionRange(idx, idx);
+  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 19;
+  ta.scrollTop = Math.max(0, (line - 1) * lh - ta.clientHeight / 3);
+}
+
+function closeTabWithGuard(id) {
+  const tab = state.tabs.find(t => t.id === id);
+  if (tab && isDirty(tab) &&
+      !confirm('"' + tab.name + '" has unsaved changes. Close and discard them?')) return;
+  closeTab(id);
 }
 
 function renderActive() {
@@ -1012,7 +1083,17 @@ function renderActive() {
   tabsEl.hidden = false;
   noticeEl.hidden = true;
 
-  // view mode (edit mode branch added in Task 5)
+  if (tab.mode === 'edit') {
+    contentHost.replaceChildren(buildEditor(tab));
+    // Outline stays from the last render (static while editing); clicks jump lines.
+    renderOutlinePane(tab.lastOutline, 'Outline', tab);
+    metaEl.hidden = true;
+    document.title = tab.name + ' — MD+SQL Viewer';
+    updateHeaderButtons();
+    return;
+  }
+
+  // view mode
   const cls = classifyContent(tab.source);
   let result;
   if (cls === 'binary') {
@@ -1084,6 +1165,7 @@ function initApp() {
   openBtn.addEventListener('click', () => pickerInput.click());
   pickerInput.addEventListener('change', e => { Array.from(e.target.files).forEach(readFile); e.target.value = ''; });
   copyAllBtn.addEventListener('click', copyActiveSource);
+  editBtn.addEventListener('click', toggleEdit);
 
   ['dragenter', 'dragover'].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); document.body.classList.add('dragging'); }));
   ['dragleave', 'drop'].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); document.body.classList.remove('dragging'); }));
@@ -1091,12 +1173,17 @@ function initApp() {
 
   // ---- keyboard (⌘-chords added in Tasks 5–7) ----
   document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+      const k = e.key.toLowerCase();
+      if (k === 'e') { e.preventDefault(); toggleEdit(); return; }
+      // 's' (save) added in Task 6, 'f' (find) in Task 7, 'o' (open) in Task 6
+    }
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === '[') { e.preventDefault(); prevTab(); }
     else if (e.key === ']') { e.preventDefault(); nextTab(); }
-    else if (e.key === 'x' && state.activeId) { e.preventDefault(); closeTab(state.activeId); }
+    else if (e.key === 'x' && state.activeId) { e.preventDefault(); closeTabWithGuard(state.activeId); }
     else if (e.key === 'c' && state.activeId) { e.preventDefault(); copyActiveSource(); }
   });
 
@@ -1116,6 +1203,10 @@ function initApp() {
     });
   }, { passive: true });
 
+  window.addEventListener('beforeunload', e => {
+    if (state.tabs.some(isDirty)) { e.preventDefault(); e.returnValue = ''; }
+  });
+
   // ---- seed from the macOS launcher ----
   if (window.__SEED__ !== undefined) {
     const items = decodeSeed(window.__SEED__);
@@ -1125,6 +1216,7 @@ function initApp() {
   }
 
   window.__TEST__.app = { state, activeTab, addTab, closeTab, setActive, prevTab, nextTab, renderActive };
+  Object.assign(window.__TEST__.app, { toggleEdit, closeTabWithGuard, isDirty });
 
   // Test mode: viewer.html?test=1 pulls in the browser suite (classic script;
   // iframes/ES modules don't work over file://).

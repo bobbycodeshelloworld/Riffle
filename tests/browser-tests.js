@@ -73,6 +73,41 @@
     A.closeTab(id);
   });
 
+  t('toggle edit shows textarea with source and gutter', () => {
+    const id = A.addTab({ name: 'e.sql', source: 'SELECT 1;\nSELECT 2;' });
+    A.toggleEdit();
+    const ta = document.querySelector('.editor-ta');
+    ok(ta, 'textarea present');
+    eq(ta.value, 'SELECT 1;\nSELECT 2;');
+    eq(document.querySelectorAll('.editor-gutter div').length, 2);
+    A.toggleEdit();
+    ok(!document.querySelector('.editor-ta'), 'back to view');
+    A.closeTab(id);
+  });
+
+  t('editing marks tab dirty; view re-renders edited source', () => {
+    const id = A.addTab({ name: 'd.sql', source: 'SELECT 1;' });
+    A.toggleEdit();
+    const ta = document.querySelector('.editor-ta');
+    ta.value = 'SELECT 42;';
+    ta.dispatchEvent(new Event('input'));
+    ok(document.querySelector('#tabs .tab.dirty'), 'dirty dot shown');
+    A.toggleEdit();
+    ok(document.querySelector('#content-host').textContent.includes('42'), 'view shows edit');
+    A.closeTab(id); // confirm stubbed true — discards
+  });
+
+  t('outline click in edit mode moves textarea caret', () => {
+    const id = A.addTab({ name: 'o.sql', source: 'SELECT 1;\nSELECT 2;\nCREATE TABLE t (i int);' });
+    A.toggleEdit();
+    const link = [...document.querySelectorAll('#outline .o-item a')].find(a => a.textContent.includes('CREATE TABLE'));
+    ok(link, 'outline entry present in edit mode');
+    link.click();
+    const ta = document.querySelector('.editor-ta');
+    eq(ta.selectionStart, 'SELECT 1;\nSELECT 2;\n'.length);
+    A.closeTab(id);
+  });
+
   window.confirm = realConfirm;
 
   const failCount = results.filter(r => r.err).length;

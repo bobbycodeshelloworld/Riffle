@@ -144,5 +144,11 @@ t('isSafeUrl src: https/data-image ok, others blocked', () => {
   ok(!T.isSafeUrl('javascript:alert(1)', 'src'));
 });
 
+/* ===== Task 5: edit mode ===== */
+t('isDirty compares source to savedSource', () => {
+  ok(!T.isDirty({ source: 'a', savedSource: 'a' }));
+  ok(T.isDirty({ source: 'b', savedSource: 'a' }));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
