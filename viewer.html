@@ -449,6 +449,22 @@ function truncate(s, n) { s = s.replace(/\s+/g, ' ').trim(); return s.length > n
 
 window.__TEST__ = { extOf, classifyContent, escapeHTML, formatBytes, b64ToString, lineStartIndex, truncate };
 
+function findMatches(source, query) {
+  if (!query) return [];
+  const out = [];
+  const s = source.toLowerCase(), q = query.toLowerCase();
+  let i = 0, line = 1, scanned = 0;
+  while ((i = s.indexOf(q, i)) !== -1) {
+    for (let k = scanned; k < i; k++) if (source.charCodeAt(k) === 10) line++;
+    scanned = i;
+    out.push({ index: i, line });
+    i += q.length;
+    if (out.length >= 5000) break;
+  }
+  return out;
+}
+Object.assign(window.__TEST__, { findMatches });
+
 /* ════════════════════════════════════════════════════════════
    CORE · state + renderer registry
    ════════════════════════════════════════════════════════════ */
@@ -1243,6 +1259,66 @@ async function openViaPicker() {
 }
 
 /* ════════════════════════════════════════════════════════════
+   CORE · find bar
+   ════════════════════════════════════════════════════════════ */
+const findState = { query: '', matches: [], cur: -1 };
+
+function updateFindCount() {
+  findCountEl.textContent = findState.matches.length
+    ? (findState.cur + 1) + '/' + findState.matches.length
+    : (findState.query ? '0/0' : '');
+}
+
+function gotoMatch() {
+  const tab = activeTab();
+  const m = findState.matches[findState.cur];
+  if (!tab || !m) return;
+  if (tab.mode === 'edit' && tab._ta) {
+    tab._ta.setSelectionRange(m.index, m.index + findState.query.length);
+    jumpTextareaToLine(tab, m.line);
+    tab._ta.setSelectionRange(m.index, m.index + findState.query.length);
+    findInputEl.focus(); // keep Enter stepping
+    return;
+  }
+  if (document.getElementById('line-' + m.line)) { flashLine(m.line); return; }
+  // markdown rendered view: scroll to the nearest heading at/above the match
+  let best = null;
+  for (const e of (tab.lastOutline || [])) { if (e.line && e.line <= m.line) best = e; else if (e.line) break; }
+  if (best && best.anchor) {
+    const el = document.getElementById(best.anchor);
+    if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+}
+
+function runFind() {
+  const tab = activeTab();
+  findState.query = findInputEl.value;
+  findState.matches = tab ? findMatches(tab.source, findState.query) : [];
+  findState.cur = findState.matches.length ? 0 : -1;
+  updateFindCount();
+  gotoMatch();
+}
+
+function stepFind(dir) {
+  if (!findState.matches.length) return;
+  findState.cur = (findState.cur + dir + findState.matches.length) % findState.matches.length;
+  updateFindCount();
+  gotoMatch();
+}
+
+function openFindBar() {
+  findbarEl.hidden = false;
+  findInputEl.focus();
+  findInputEl.select();
+}
+
+function closeFindBar() {
+  findbarEl.hidden = true;
+  findState.query = ''; findState.matches = []; findState.cur = -1;
+  findCountEl.textContent = '';
+}
+
+/* ════════════════════════════════════════════════════════════
    CORE · app bootstrap (all DOM access lives in initApp)
    ════════════════════════════════════════════════════════════ */
 let tabsEl, contentHost, outlineEl, metaEl, dropHint, copyAllBtn, editBtn, saveBtn,
@@ -1274,6 +1350,20 @@ function initApp() {
   editBtn.addEventListener('click', toggleEdit);
   saveBtn.addEventListener('click', saveActiveTab);
 
+  // ---- find bar ----
+  let findDebounce = null;
+  findInputEl.addEventListener('input', () => {
+    clearTimeout(findDebounce);
+    findDebounce = setTimeout(runFind, 120);
+  });
+  findInputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeFindBar(); }
+  });
+  document.getElementById('find-next').addEventListener('click', () => stepFind(1));
+  document.getElementById('find-prev').addEventListener('click', () => stepFind(-1));
+  document.getElementById('find-close').addEventListener('click', closeFindBar);
+
   ['dragenter', 'dragover'].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); document.body.classList.add('dragging'); }));
   ['dragleave', 'drop'].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); document.body.classList.remove('dragging'); }));
   document.addEventListener('drop', e => {
@@ -1303,7 +1393,7 @@ function initApp() {
       if (k === 'e') { e.preventDefault(); toggleEdit(); return; }
       if (k === 's') { e.preventDefault(); saveActiveTab(); return; }
       if (k === 'o') { e.preventDefault(); openViaPicker(); return; }
-      // 'f' (find) added in Task 7
+      if (k === 'f') { e.preventDefault(); openFindBar(); return; }
     }
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
@@ -1345,6 +1435,7 @@ function initApp() {
   window.__TEST__.app = { state, activeTab, addTab, closeTab, setActive, prevTab, nextTab, renderActive };
   Object.assign(window.__TEST__.app, { toggleEdit, closeTabWithGuard, isDirty });
   Object.assign(window.__TEST__.app, { saveActiveTab, openViaPicker, updateHeaderButtons });
+  Object.assign(window.__TEST__.app, { openFindBar, closeFindBar, runFind, stepFind, findState });
 
   // Test mode: viewer.html?test=1 pulls in the browser suite (classic script;
   // iframes/ES modules don't work over file://).

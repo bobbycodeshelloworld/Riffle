@@ -155,5 +155,16 @@ t('saveActionFor: handle → save', () => { eq(T.saveActionFor({ handle: {} }, {
 t('saveActionFor: no handle + picker → saveAs', () => { eq(T.saveActionFor({ handle: null }, { canPick: true }), 'saveAs'); });
 t('saveActionFor: no capability → download', () => { eq(T.saveActionFor({ handle: null }, { canPick: false }), 'download'); });
 
+/* ===== Task 7: find ===== */
+t('findMatches finds case-insensitive with line numbers', () => {
+  eq(T.findMatches('Alpha\nbeta ALPHA', 'alpha'), [{ index: 0, line: 1 }, { index: 11, line: 2 }]);
+});
+t('findMatches empty query → no matches', () => {
+  eq(T.findMatches('anything', ''), []);
+});
+t('findMatches non-overlapping', () => {
+  eq(T.findMatches('aaaa', 'aa').length, 2);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -197,6 +197,33 @@
     A.closeTab(id);
   });
 
+  t('find bar counts and steps matches', () => {
+    const id = A.addTab({ name: 'f.sql', source: 'SELECT a;\nSELECT b;\nSELECT c;' });
+    A.openFindBar();
+    document.getElementById('find-input').value = 'select';
+    A.runFind();
+    eq(document.getElementById('find-count').textContent, '1/3');
+    A.stepFind(1);
+    eq(document.getElementById('find-count').textContent, '2/3');
+    A.stepFind(-1);
+    eq(document.getElementById('find-count').textContent, '1/3');
+    A.closeFindBar();
+    A.closeTab(id);
+  });
+
+  t('find in edit mode selects the match', () => {
+    const id = A.addTab({ name: 'fe.sql', source: 'alpha\nbeta' });
+    A.toggleEdit();
+    A.openFindBar();
+    document.getElementById('find-input').value = 'beta';
+    A.runFind();
+    const ta = document.querySelector('.editor-ta');
+    eq(ta.selectionStart, 6);
+    eq(ta.selectionEnd, 10);
+    A.closeFindBar();
+    A.closeTab(id);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {
