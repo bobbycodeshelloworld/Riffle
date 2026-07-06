@@ -1052,10 +1052,8 @@ function buildEditor(tab) {
 }
 
 function toggleEdit() {
-  const tab0 = activeTab();
-  if (!tab0 || tab0.cls !== 'text') return;
   const tab = activeTab();
-  if (!tab) return;
+  if (!tab || tab.cls !== 'text') return;
   tab.mode = tab.mode === 'edit' ? 'view' : 'edit';
   renderActive();
   if (tab.mode === 'edit' && tab._ta) tab._ta.focus();
@@ -1148,6 +1146,8 @@ function readFile(file) {
 /* ════════════════════════════════════════════════════════════
    CORE · saving
    ════════════════════════════════════════════════════════════ */
+let savePending = false; // re-entrancy guard: overlapping ⌘S must not double-write
+
 function saveActionFor(tab, caps) {
   caps = caps || { canPick: typeof window.showSaveFilePicker === 'function' };
   if (tab.handle) return 'save';
@@ -1172,51 +1172,58 @@ async function ensureWritePermission(handle) {
 }
 
 async function saveActiveTab() {
-  const tab = activeTab();
-  if (!tab) return;
-  const action = saveActionFor(tab);
+  if (savePending) return;
+  savePending = true;
   try {
-    if (action === 'save') {
-      await ensureWritePermission(tab.handle);
-      const before = await tab.handle.getFile();
-      if (tab.lastModified != null && before.lastModified !== tab.lastModified) {
-        const overwrite = confirm('"' + tab.name + '" changed on disk since it was opened.\n\n'
-          + 'OK — overwrite the disk version with your edits.\n'
-          + 'Cancel — leave the disk version alone (your edits stay in this tab, unsaved).');
-        if (!overwrite) return;
+    const tab = activeTab();
+    if (!tab) return;
+    const action = saveActionFor(tab);
+    try {
+      if (action === 'save') {
+        await ensureWritePermission(tab.handle);
+        const before = await tab.handle.getFile();
+        if (tab.lastModified != null && before.lastModified !== tab.lastModified) {
+          const overwrite = confirm('"' + tab.name + '" changed on disk since it was opened.\n\n'
+            + 'OK — overwrite the disk version with your edits.\n'
+            + 'Cancel — leave the disk version alone (your edits stay in this tab, unsaved).');
+          if (!overwrite) return;
+        }
+        const w = await tab.handle.createWritable();
+        await w.write(tab.source);
+        await w.close();
+        const after = await tab.handle.getFile();
+        tab.lastModified = after.lastModified;
+        tab.savedSource = tab.source;
+        toast('Saved ' + tab.name);
+      } else if (action === 'saveAs') {
+        const handle = await window.showSaveFilePicker({ suggestedName: tab.name });
+        const w = await handle.createWritable();
+        await w.write(tab.source);
+        await w.close();
+        tab.handle = handle;
+        tab.name = handle.name || tab.name;
+        tab.ext = extOf(tab.name);
+        tab.rendered = null; // ext may have changed — force a re-render with the new renderer
+        const f = await handle.getFile();
+        tab.lastModified = f.lastModified;
+        tab.savedSource = tab.source;
+        renderTabs();
+        toast('Saved ' + tab.name);
+      } else {
+        downloadCopy(tab);
+        // The original file is untouched, so the tab intentionally stays dirty.
+        toast('Downloaded a copy — the original file is unchanged.');
       }
-      const w = await tab.handle.createWritable();
-      await w.write(tab.source);
-      await w.close();
-      const after = await tab.handle.getFile();
-      tab.lastModified = after.lastModified;
-      tab.savedSource = tab.source;
-      toast('Saved ' + tab.name);
-    } else if (action === 'saveAs') {
-      const handle = await window.showSaveFilePicker({ suggestedName: tab.name });
-      const w = await handle.createWritable();
-      await w.write(tab.source);
-      await w.close();
-      tab.handle = handle;
-      tab.name = handle.name || tab.name;
-      tab.ext = extOf(tab.name);
-      const f = await handle.getFile();
-      tab.lastModified = f.lastModified;
-      tab.savedSource = tab.source;
-      renderTabs();
-      toast('Saved ' + tab.name);
-    } else {
-      downloadCopy(tab);
-      // The original file is untouched, so the tab intentionally stays dirty.
-      toast('Downloaded a copy — the original file is unchanged.');
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // user cancelled the picker
+      alert('Save failed: ' + (err && err.message || err)
+        + '\n\nYour edits are still in this tab. Try again, or use Download copy.');
     }
-  } catch (err) {
-    if (err && err.name === 'AbortError') return; // user cancelled the picker
-    alert('Save failed: ' + (err && err.message || err)
-      + '\n\nYour edits are still in this tab. Try again, or use Download copy.');
+  } finally {
+    savePending = false;
+    refreshDirtyMarkers();
+    updateHeaderButtons();
   }
-  refreshDirtyMarkers();
-  updateHeaderButtons();
 }
 
 async function openViaPicker() {
@@ -1224,8 +1231,10 @@ async function openViaPicker() {
     try {
       const handles = await window.showOpenFilePicker({ multiple: true });
       for (const h of handles) {
-        const f = await h.getFile();
-        addTab({ name: f.name, path: f.name, source: await f.text(), handle: h, lastModified: f.lastModified });
+        try {
+          const f = await h.getFile();
+          addTab({ name: f.name, path: f.name, source: await f.text(), handle: h, lastModified: f.lastModified });
+        } catch (err) { /* one bad file shouldn't kill the batch */ }
       }
     } catch (err) { if (!err || err.name !== 'AbortError') throw err; }
     return;

@@ -4,11 +4,11 @@
 (function () {
   const T = window.__TEST__, A = T && T.app;
   const results = [];
-  function t(name, fn) { try { fn(); results.push({ name, err: null }); } catch (e) { results.push({ name, err: e }); } }
+  const tests = [];
+  function t(name, fn) { tests.push([name, fn]); }
   function ok(v, msg) { if (!v) throw new Error(msg || 'expected truthy'); }
   function eq(a, b) { const ja = JSON.stringify(a), jb = JSON.stringify(b); if (ja !== jb) throw new Error('expected ' + jb + ', got ' + ja); }
   const realConfirm = window.confirm;
-  window.confirm = () => true; // never block the suite on dialogs
 
   t('__TEST__.app is exposed', () => { ok(A && typeof A.addTab === 'function'); });
 
@@ -143,20 +143,81 @@
     A.closeTab(id);
   });
 
-  window.confirm = realConfirm;
+  t('save with stubbed handle writes and clears dirty', async () => {
+    let written = null;
+    const fake = { name: 'h.sql', kind: 'file',
+      async queryPermission() { return 'granted'; },
+      async requestPermission() { return 'granted'; },
+      async getFile() { return { lastModified: 111 }; },
+      async createWritable() { return { async write(v) { written = v; }, async close() {} }; } };
+    const id = A.addTab({ name: 'h.sql', source: 'SELECT 1;', handle: fake, lastModified: 111 });
+    A.toggleEdit();
+    const ta = document.querySelector('.editor-ta');
+    ta.value = 'SELECT 2;';
+    ta.dispatchEvent(new Event('input'));
+    await A.saveActiveTab();
+    eq(written, 'SELECT 2;');
+    ok(!T.isDirty(A.state.tabs.find(t2 => t2.id === id)), 'tab clean after save');
+    A.toggleEdit(); A.closeTab(id);
+  });
 
-  const failCount = results.filter(r => r.err).length;
-  // Publish results in the tab title so AppleScript (read-only tab name) can
-  // verify the suite on machines with no scriptable/headless browser.
-  document.title = 'TESTS: ' + (results.length - failCount) + ' passed, ' + failCount + ' failed';
-  const box = document.createElement('div');
-  box.id = 'test-summary';
-  box.dataset.fail = String(failCount);
-  box.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:45vh;overflow:auto;'
-    + 'background:var(--panel);border-top:2px solid ' + (failCount ? '#e64553' : '#40a02b')
-    + ';padding:10px 20px;font:12px ui-monospace,Menlo,monospace;z-index:9999';
-  box.innerHTML = '<b>' + (results.length - failCount) + ' passed, ' + failCount + ' failed</b>'
-    + results.map(r => '<div style="color:' + (r.err ? '#e64553' : '#40a02b') + '">'
-      + (r.err ? '✗ ' : '✓ ') + r.name + (r.err ? ' — ' + r.err.message : '') + '</div>').join('');
-  document.body.appendChild(box);
+  t('double save is guarded: one write for overlapping calls', async () => {
+    let writes = 0; let release;
+    const gate = new Promise(r => { release = r; });
+    const fake = { name: 'r.sql', kind: 'file',
+      async queryPermission() { return 'granted'; },
+      async getFile() { return { lastModified: 5 }; },
+      async createWritable() { await gate; writes++; return { async write() {}, async close() {} }; } };
+    const id = A.addTab({ name: 'r.sql', source: 'a', handle: fake, lastModified: 5 });
+    A.toggleEdit();
+    const ta = document.querySelector('.editor-ta');
+    ta.value = 'b'; ta.dispatchEvent(new Event('input'));
+    const p1 = A.saveActiveTab();
+    const p2 = A.saveActiveTab();
+    release();
+    await p1; await p2;
+    eq(writes, 1);
+    A.toggleEdit(); A.closeTab(id);
+  });
+
+  t('save-as re-renders with new extension renderer', async () => {
+    const fake = { name: 'x.sql', kind: 'file',
+      async queryPermission() { return 'granted'; },
+      async getFile() { return { lastModified: 7 }; },
+      async createWritable() { return { async write() {}, async close() {} }; } };
+    const prevPicker = window.showSaveFilePicker;
+    window.showSaveFilePicker = async () => fake;
+    const id = A.addTab({ name: 'x.md', source: 'SELECT 1;' });
+    A.toggleEdit();
+    await A.saveActiveTab();
+    window.showSaveFilePicker = prevPicker;
+    eq(A.activeTab().ext, 'sql');
+    A.toggleEdit();
+    ok(document.querySelector('.lc .t-keyword'), 'sql renderer used after ext change');
+    A.closeTab(id);
+  });
+
+  (async () => {
+    window.confirm = () => true; // never block the suite on dialogs
+    for (const [name, fn] of tests) {
+      try { await fn(); results.push({ name, err: null }); }
+      catch (e) { results.push({ name, err: e }); }
+    }
+    window.confirm = realConfirm;
+
+    const failCount = results.filter(r => r.err).length;
+    // Publish results in the tab title so AppleScript (read-only tab name) can
+    // verify the suite on machines with no scriptable/headless browser.
+    document.title = 'TESTS: ' + (results.length - failCount) + ' passed, ' + failCount + ' failed';
+    const box = document.createElement('div');
+    box.id = 'test-summary';
+    box.dataset.fail = String(failCount);
+    box.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:45vh;overflow:auto;'
+      + 'background:var(--panel);border-top:2px solid ' + (failCount ? '#e64553' : '#40a02b')
+      + ';padding:10px 20px;font:12px ui-monospace,Menlo,monospace;z-index:9999';
+    box.innerHTML = '<b>' + (results.length - failCount) + ' passed, ' + failCount + ' failed</b>'
+      + results.map(r => '<div style="color:' + (r.err ? '#e64553' : '#40a02b') + '">'
+        + (r.err ? '✗ ' : '✓ ') + r.name + (r.err ? ' — ' + r.err.message : '') + '</div>').join('');
+    document.body.appendChild(box);
+  })();
 })();
