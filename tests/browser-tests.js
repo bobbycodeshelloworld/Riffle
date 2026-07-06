@@ -45,6 +45,9 @@
   window.confirm = realConfirm;
 
   const failCount = results.filter(r => r.err).length;
+  // Publish results in the tab title so AppleScript (read-only tab name) can
+  // verify the suite on machines with no scriptable/headless browser.
+  document.title = 'TESTS: ' + (results.length - failCount) + ' passed, ' + failCount + ' failed';
   const box = document.createElement('div');
   box.id = 'test-summary';
   box.dataset.fail = String(failCount);
