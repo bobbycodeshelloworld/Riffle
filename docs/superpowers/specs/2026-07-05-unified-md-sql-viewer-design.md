@@ -209,6 +209,27 @@ Power-edit sessions start from inside the app in Chromium.
 - **Save-back paths:** manual, per-browser (automating native file dialogs isn't
   worth it at this scale).
 
+## v1.3 — UI refinements (approved 2026-07-06, from user testing)
+
+- **Outline moves to the LEFT** of the content (grid `260px minmax(0,1fr)`,
+  aside before main; separator border flips to the sidebar's right edge).
+- **Header buttons**: Edit, Open file(s), and ⚙ adopt the accent-filled
+  `copy-btn` style (same as Copy file/Save) so all header actions carry the
+  theme accent. Order: Copy file · Edit · Save · Open file(s) · ⚙. The gear
+  is rendered ~2× (20px glyph).
+- **Dark chrome + soft paper light modes.** Four new schema vars —
+  `chrome-bg, chrome-ink, chrome-muted, chrome-border` (VAR_SCHEMA 29→33).
+  Chrome surfaces (header, tab strip, find bar, settings panel, toast) use
+  chrome vars. Dark modes: chrome ≡ panel/ink/muted/border (no visual
+  change). Light modes: chrome comes from the theme's DARK palette (dark
+  header/tabs/panel), tab inks switch to the dark-mode set, content
+  backgrounds dim from pure white to each palette's tinted paper, and token
+  contrast floors rise. Gate test now covers ALL 12 themes: light tokens
+  ≥4.5:1 vs code-bg, dark ≥2.5:1, chrome-ink vs chrome-bg ≥4.5:1 both
+  modes, light bg luminance ≤0.93, light chrome-bg luminance ≤0.15.
+  (Catppuccin/slate lose their grandfathering — this is a deliberate
+  light-mode redesign.)
+
 ## v1.2 — Themes & settings (approved 2026-07-06)
 
 A ⚙ settings panel in the header with five settings, persisted to
