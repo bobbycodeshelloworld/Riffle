@@ -293,6 +293,14 @@
     A.closeTab(id);
   });
 
+  t('csv tab renders header and data cells as a table', () => {
+    const id = A.addTab({ name: 'd.csv', source: 'name,qty\nwidget,"1,5"' });
+    ok(document.querySelector('.csv-wrap thead th'), 'header cell');
+    const tds = [...document.querySelectorAll('.csv-wrap tbody td')].map(x => x.textContent);
+    eq(tds, ['widget', '1,5']);
+    A.closeTab(id);
+  });
+
   (async () => {
     window.confirm = () => true; // never block the suite on dialogs
     for (const [name, fn] of tests) {

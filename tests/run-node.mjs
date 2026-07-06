@@ -191,5 +191,16 @@ t('tokensToLines splits multi-line tokens and escapes', () => {
   ok(lines[1].includes('&lt;c'));
 });
 
+/* ===== v1.1: csv renderer ===== */
+t('parseCSV quoted fields and "" escapes', () => {
+  eq(T.parseCSV('a,"b ""x"", c",d\n1,2,3', ','), [['a', 'b "x", c', 'd'], ['1', '2', '3']]);
+});
+t('parseCSV newline inside quotes', () => {
+  eq(T.parseCSV('a,"line1\nline2"\nb,c', ','), [['a', 'line1\nline2'], ['b', 'c']]);
+});
+t('parseCSV tab delimiter and trailing newline', () => {
+  eq(T.parseCSV('a\tb\n1\t2\n', '\t'), [['a', 'b'], ['1', '2']]);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
