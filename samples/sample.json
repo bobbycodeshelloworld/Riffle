@@ -1,0 +1,15 @@
+{
+  "app": "riffle",
+  "tagline": "riffle through your files",
+  "version": "1.3.0",
+  "formats": ["md", "sql", "json", "csv", "diff"],
+  "zero_build": true,
+  "size_kb": 141,
+  "themes": {
+    "count": 12,
+    "default": "catppuccin",
+    "contrast_gated": true
+  },
+  "numbers": [1, 2.5, -3, 1.5e2],
+  "nullable": null
+}

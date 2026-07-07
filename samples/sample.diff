@@ -1,0 +1,17 @@
+diff --git a/viewer.html b/viewer.html
+--- a/viewer.html
++++ b/viewer.html
+@@ -1,5 +1,5 @@
+ <!DOCTYPE html>
+ <html lang="en">
+-<title>MD+SQL Viewer</title>
++<title>Riffle</title>
+ <meta charset="UTF-8">
+ <!-- one file is the app -->
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,4 @@
+ # Riffle
++**Riffle through your files.**
+ One self-contained HTML file.

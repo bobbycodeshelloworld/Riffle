@@ -70,8 +70,8 @@ your files with it, or just drag files in.
 
 ## Try it
 
-Open `samples/sample.md` and `samples/sample.sql` — they exercise everything
-above.
+Open the files in `samples/` — `sample.md`, `sample.sql`, `sample.json`,
+`sample.csv`, and `sample.diff` exercise every renderer.
 
 ## Tests
 
