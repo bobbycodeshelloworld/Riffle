@@ -1,4 +1,8 @@
-# Riffle
+<p align="center">
+  <img src="macos/icon.png" width="128" alt="Riffle icon — riffled pages with syntax-colored stripes">
+</p>
+
+<h1 align="center">Riffle</h1>
 
 **Riffle through your files.** One self-contained HTML file that opens,
 renders, and edits Markdown, SQL, JSON, CSV, and diffs. No install, no build,
@@ -44,7 +48,8 @@ you opened it and asks before clobbering.
 ./macos/build.sh
 ```
 
-builds `macos/Riffle.app` (with its icon, generated from `macos/icon.png`).
+builds `macos/Riffle.app` (with its icon, generated from `macos/icon.png` —
+itself rendered by `swift macos/render-icon.swift macos/icon.png`).
 Install it where you like — e.g. `ditto "macos/Riffle.app" /Applications/Riffle.app`
 — then: right-click any `.md` or `.sql` file
 → **Get Info** → **Open with** → Riffle → **Change All…**. Double-clicked
