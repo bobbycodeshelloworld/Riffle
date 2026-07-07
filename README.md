@@ -44,7 +44,9 @@ you opened it and asks before clobbering.
 ./macos/build.sh
 ```
 
-builds `macos/Riffle.app`. Then: right-click any `.md` or `.sql` file
+builds `macos/Riffle.app` (with its icon, generated from `macos/icon.png`).
+Install it where you like — e.g. `ditto "macos/Riffle.app" /Applications/Riffle.app`
+— then: right-click any `.md` or `.sql` file
 → **Get Info** → **Open with** → Riffle → **Change All…**. Double-clicked
 files open as read-mostly tabs (browser security means no direct file handle);
 use *Save As…* once to start saving in place, or open files from inside the

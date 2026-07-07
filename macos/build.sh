@@ -65,6 +65,23 @@ PLIST="$APP/Contents/Info.plist"
 "$PLIST_BUDDY" -c "Add :CFBundleDocumentTypes:4:CFBundleTypeExtensions:0 string diff" "$PLIST"
 "$PLIST_BUDDY" -c "Add :CFBundleDocumentTypes:4:CFBundleTypeExtensions:1 string patch" "$PLIST"
 
+if [ -f icon.png ]; then
+  echo "› building icon"
+  ICONTMP=$(mktemp -d)
+  ICONSET="$ICONTMP/riffle.iconset"
+  mkdir -p "$ICONSET"
+  for s in 16 32 128 256 512; do
+    sips -z "$s" "$s" icon.png --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+    sips -z "$((s*2))" "$((s*2))" icon.png --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+  done
+  iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/droplet.icns"
+  rm -rf "$ICONTMP"
+  # osacompile ships an Assets.car whose CFBundleIconName wins over
+  # droplet.icns — drop both so the custom icon is used.
+  rm -f "$APP/Contents/Resources/Assets.car"
+  "$PLIST_BUDDY" -c "Delete :CFBundleIconName" "$PLIST" 2>/dev/null || true
+fi
+
 echo "› registering with LaunchServices"
 "$LSREGISTER" -f "$APP" || true
 
