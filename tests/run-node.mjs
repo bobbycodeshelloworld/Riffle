@@ -282,11 +282,15 @@ t('all themes meet contrast and chrome floors', () => {
            id + '.' + mode + '.' + tk + ' contrast ' + ratio(m[tk], m['code-bg']).toFixed(2) + ' < ' + floor);
       }
     }
-    // chrome-ink vs chrome-bg >= 4.5 in both modes
+    // chrome-ink vs chrome-bg >= 4.5 in both modes; chrome-muted and tab inks >= 3 vs chrome-bg
     for (const mode of ['dark', 'light']) {
       const m = th[mode];
       ok(ratio(m['chrome-ink'], m['chrome-bg']) >= 4.5,
          id + '.' + mode + ' chrome-ink/chrome-bg contrast ' + ratio(m['chrome-ink'], m['chrome-bg']).toFixed(2) + ' < 4.5');
+      for (const k of ['chrome-muted', 'tab-active-ink', 'tab-idle-ink', 'tab-hover-ink']) {
+        ok(ratio(m[k], m['chrome-bg']) >= 3,
+           id + '.' + mode + ' ' + k + '/chrome-bg contrast ' + ratio(m[k], m['chrome-bg']).toFixed(2) + ' < 3');
+      }
     }
     // light bg must not be near-pure-white; light chrome-bg must be genuinely dark
     ok(lum(th.light.bg) <= 0.93, id + '.light.bg luminance ' + lum(th.light.bg).toFixed(3) + ' > 0.93');
